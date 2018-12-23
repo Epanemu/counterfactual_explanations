@@ -376,33 +376,5 @@ def plot_coefficients(exp,filename='out.png',med_weight=False):
     plt.savefig(filename)
     plt.show()
     
-if __name__ == "__main__":
-    import pandas as pd
-    frame=pd.read_csv("/home/chrisr/Python/data/FICO/heloc_dataset_v1.csv")
-    train=np.arange(frame.shape[0])%10!=0
-    test=np.bitwise_not(train)
-    target=np.asarray(frame['RiskPerformance']=='Good')
-    inputs=frame[frame.columns[1:]]
-
-    exp=linear_explanation()
-    exp.encode_pandas(inputs)
-    #exp.train_logistic(target[train],train)
-    exp.train_logistic(target)
-    i =409 #Explain 7th test entry
-    text=exp.explain_entry(inputs.iloc[i].values,5)
-    for t in text:
-        print (t)
-        
-    explain_all=False
-    if explain_all:
-        explanations=exp.explain_set(inputs.values,8)
-        exp2=pd.DataFrame(explanations)
-        exp2.to_csv('test.csv')
-    plot_coefficients(exp,med_weight=True)
-    #Retrain on all data to test stability of explanation
-    #exp.train_logistic(target)
-    #Explain the same test entry
-    #exp.build_structure()
-    #text=exp.give_explanation()
 
     
