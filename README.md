@@ -3,7 +3,9 @@
 This code is an implementation of the paper "Efficient Search for Diverse
 Coherent Explanations". To run without modification, it requires a copy of the
 FICO data taken from:
-https://community.fico.com/s/explainable-machine-learning-challenge?tabset-3158a=413df
+https://community.fico.com/s/explainable-machine-learning-challenge?&tabset-3158a=2
+
+It also uses the gurobi solver http://www.gurobi.com/ for the MIP solver. 
 
 The code explicitly targets this data set and has made a couple of simple
 assumptions as to the form the dataset takes. Each variable is assumed to take a
