@@ -1,7 +1,10 @@
 # Diverse Coherent Explanations
 
 This code is an implementation of the paper "Efficient Search for Diverse
-Coherent Explanations". To run without modification, it requires a copy of the
+Coherent Explanations". 
+https://arxiv.org/pdf/1901.04909.pdf 
+
+To run without modification, it requires a copy of the
 FICO data taken from:
 https://community.fico.com/s/explainable-machine-learning-challenge?&tabset-3158a=2
 
