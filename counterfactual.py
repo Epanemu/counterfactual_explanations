@@ -218,7 +218,7 @@ class linear_explanation:
         """pretty printer helper, returns string of negative integer if x<0
             string of floating point value otherwise."""
         if x<-1e-5:
-            return (" %d "%x)+self.special_val[x]
+                return (" %d "%x)+self.special_val.get(x,'')
         #out="%1.1f"%(x*self.cox[i].scale)
         #Todo implement rounding up/down  correctly
         if (x-other<0):
@@ -315,9 +315,9 @@ class linear_explanation:
         return full_exp
 
     def explain_entry(self,entry,upto=10):
-        exp.set_factual(entry)
-        exp.build_structure()
-        text=exp.give_explanation(upto)
+        self.set_factual(entry)
+        self.build_structure()
+        text=self.give_explanation(upto)
         return text
     
     def explain_set(self,entries,upto=10):
