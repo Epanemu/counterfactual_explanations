@@ -292,7 +292,7 @@ class linear_explanation:
                     self.counterfactual.update()
                     self.counterfactual.optimize()
 
-    def give_explanation(self,upto=10):
+    def give_explanation(self,upto=10,labels=("'good'","'bad'")):
         """Warning destructive operation. Has different output if rerun without
         rebuilding build_structure.
 
@@ -302,7 +302,7 @@ class linear_explanation:
         assert(upto>=1)
         out= self.recover_all_val(self.var)
         full_exp=list()
-        full_exp.append(self.explain(out))
+        full_exp.append(self.explain(out,labels))
         #full_exp+='\n-----\n'
         old_out=out
         for i in range(upto-1):
@@ -310,14 +310,14 @@ class linear_explanation:
             out= self.recover_all_val(self.var)
             if np.all(out==old_out):
                 break
-            full_exp.append(self.explain_follow(out))
+            full_exp.append(self.explain_follow(out,labels))
             old_out=out
         return full_exp
 
-    def explain_entry(self,entry,upto=10):
+    def explain_entry(self,entry,upto=10,labels=("'good'","'bad'")):
         self.set_factual(entry)
         self.build_structure()
-        text=self.give_explanation(upto)
+        text=self.give_explanation(upto,labels=("'good'","'bad'"))
         return text
     
     def explain_set(self,entries,upto=10):
