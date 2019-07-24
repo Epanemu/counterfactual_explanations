@@ -317,7 +317,7 @@ class linear_explanation:
     def explain_entry(self,entry,upto=10,labels=("'good'","'bad'")):
         self.set_factual(entry)
         self.build_structure()
-        text=self.give_explanation(upto,labels=("'good'","'bad'"))
+        text=self.give_explanation(upto,labels)
         return text
     
     def explain_set(self,entries,upto=10):
