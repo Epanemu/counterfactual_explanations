@@ -34,7 +34,7 @@ example.py is a commented demo that learns a logistic regression classifier
 over datasets using the encoding described in the original paper, and then 
 generates counterfactual explanations.
 
-
+Thanks to Ramaravind Mothilal for helping with the adult demo.
 
 
 
