@@ -217,8 +217,9 @@ class linear_explanation:
     def pp(self,x,other,i):
         """pretty printer helper, returns string of negative integer if x<0
             string of floating point value otherwise."""
-        if x<-1e-5:
-                return (" %d "%x)+self.special_val.get(x,'')
+        spec=self.special_val
+        if x< 1e-5:
+                return (" %d "%x)+spec.get(self.cox[i].name,spec).get(x,'')
         #out="%1.1f"%(x*self.cox[i].scale)
         #Todo implement rounding up/down  correctly
         if (x-other<0):
