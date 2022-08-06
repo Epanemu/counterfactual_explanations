@@ -57,13 +57,13 @@ class linear_explanation:
                 j+=1
             self.cox[i]=SimpleNamespace(name=inputs.columns[i],total=tab, #normal=normal,
                                    med=med,MAD=1.0/MAD,unique=un,scale=scale)
-        self.encoded=np.vstack(map (lambda x: x.total,self.cox)).T
+        self.encoded=np.vstack(list(map(lambda x: x.total,self.cox))).T
 
 
     def train_logistic(self,target,subset=False):
         """Use optional subset vector to indicate which values correspond to
         the target labels"""
-        lr=skl.logistic.LogisticRegressionCV(solver='sag')
+        lr=skl.LogisticRegressionCV(solver='sag')
         if subset is not False:
             self.model=lr.fit(self.encoded[subset],target)
         else:

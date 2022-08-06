@@ -36,7 +36,7 @@ exp.train_logistic(target[train],train)
 #the following line instead
 #exp.train_logistic(target)
 
-if method =='adult': #Modify the pretty printer for special values.
+if dataset =='adult': #Modify the pretty printer for special values.
     exp.special_val={'workclass': {0: 'Government', -3: 'Other/Unknown', -2: 'Private', -1: 'Self-Employed'},
                      'education': {0: 'Assoc', -7: 'Bachelors', -6: 'Doctorate', -5: 'HS-grad', -4: 'Masters', -3: 'Prof-school', -2: 'School', -1: 'Some-college'},
                      'marital_status': {0: 'Divorced', -4: 'Married', -3: 'Separated', -2: 'Single', -1: 'Widowed'},
