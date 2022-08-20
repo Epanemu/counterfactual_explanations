@@ -3,88 +3,27 @@
 """
 Created on Tue Aug 28 14:24:01 2018
 
-@author: chrisr
+@author: Criss Russel, Jiří Němeček
 """
 import numpy as np
 from types import SimpleNamespace
-import sklearn.linear_model as skl
 import gurobipy as gb
 gb.setParam('OutputFlag', 0)
 
 
 class LinearExplanation:
-    def __init__(self):
-        return None
-
-    def encode_pandas(self, inputs):
-        """Build a training set of dummy encoded variables from existing input
-        data"""
-        self.cox = np.empty(inputs.columns.size, dtype=np.object)
-        self.constraints = np.empty_like(self.cox)
-        for i in range(inputs.columns.shape[0]):
-            col = inputs[inputs.columns[i]]
-            vals = np.minimum(col, 0)
-            normal = col[(col >= 0)]
-            scale = normal.max()
-            if scale == 0 or np.isnan(scale):
-                scale = 1
-            normal /= scale
-            un = np.unique(vals)
-            un = un[un != 0]
-            tab = np.zeros((un.shape[0] + 1, vals.shape[0]))
-            tab[0] = np.maximum(col / scale, 0)
-            med = np.empty(un.shape[0] + 1)
-            MAD = np.empty_like(med)
-            med[0] = np.median(normal)
-            if np.isnan(med[0]):
-                med[0] = 1
-            MAD[0] = np.median(np.abs(normal - med[0]))
-            if MAD[0] == 0:
-                MAD[0] = 1.48 * np.std(normal)
-            if not (MAD[0] > 0):
-                MAD[0] == 1
-            if np.isnan(MAD[0]):
-                MAD[0] = 1
-            tab[0, np.isnan(tab[0])] = 1
-            MAD[0] = max(1e-4, MAD[0])
-            # print (MAD[0])
-            j = 1
-            for u in un:
-                tab[j] = (col == u)
-                med[j] = np.mean(tab[j])
-                MAD[j] = 1.48 * np.std(tab[j])  # Should be median
-                if not (MAD[j] > 0):
-                    MAD[j] == 1e-4
-                j += 1
-            self.cox[i] = SimpleNamespace(name=inputs.columns[i], total=tab,  # normal=normal,
-                                          med=med, MAD=1.0 / MAD, unique=un, scale=scale)
-        self.encoded = np.vstack(list(map(lambda x: x.total, self.cox))).T
-
-    def train_logistic(self, target, subset=False):
-        """Use optional subset vector to indicate which values correspond to
-        the target labels"""
-        lr = skl.LogisticRegressionCV(solver='sag')
-        if subset is not False:
-            self.model = lr.fit(self.encoded[subset], target)
-        else:
-            self.model = lr.fit(self.encoded, target)
-
-    def evaluate(self, datum):
-        """Provides a model prediction for a provided datum"""
-        # datum=self.recover_all_stack(datum.values)
-        datum = datum.reshape(1, -1)
-        return self.model.decision_function(datum)
-
-    def evaluate_subset(self, subset):
-        """provides a model prediction for a subset of the existing data"""
-        return self.model.decision_function(self.encoded[subset])
+    def __init__(self, model, encoded, context, constraints):
+        self.lrmodel = model
+        self.encoded = encoded
+        self.cox = context
+        self.constraints = constraints
 
     def build_structure(self, n_explanations=1):
         """build the Core programme of the model that induces
         counterfactuals for the datapoint test_entry"""
         test_entry = self.short_factual
         self.counterfactual = gb.Model()
-        self.direction = np.sign(self.evaluate(self.long_factual)) * -1
+        self.direction = np.sign(self.lrmodel.evaluate(self.long_factual)) * -1
         # constant=0
         # Build  polytope
         # Normalise test_entry
@@ -93,9 +32,11 @@ class LinearExplanation:
         #   if test_entry[i]>=0:
         #       test_entry[i]/=self.cox[i].scale
 
-        decision = self.model.intercept_[0]
         # entries
-        stack = self.model.coef_[0]
+
+        intercept, coefficients = self.lrmodel.get_model_params()
+        decision = intercept
+        stack = coefficients
 
         self.var = np.empty(self.cox.shape[0], dtype=np.object)
         for i in range(self.cox.shape[0]):
@@ -143,28 +84,6 @@ class LinearExplanation:
 
         self.counterfactual.optimize()
 
-    # def add_fico_constraints(self):
-    #     # TODO:
-    #     """It turns out that there are implicit constraints hidden in the fico
-    #     variable names
-    #     in particular if 'NumTrades60Ever2DerogPubRec' and 'NumTrades90Ever2DerogPubRec'
-    #     are both non-negative the first term is always smaller than or equal to
-    #     the second similarly:
-    #     'NumInqLast6M' > 'NumInqLast6Mexcl7days'
-    #     and MSinceMostRecentTradeOpen > AverageMInFile
-    #     Although
-    #     'MaxDelq2PublicRecLast12M' < 'MaxDelqEver'
-    #     there are 7 points that violate this.
-    #     2 MSinceMostRecentTradeOpen (True, False, False)
-    #     5 NumTrades60Ever2DerogPubRec (False, False, True)
-
-    #     9 MaxDelq2PublicRecLast12M (False, False, False)
-
-    #     15 NumInqLast6M (False, False, True)
-
-    #     21 NumBank2NatlTradesWHighUtilization (True, False, False)
-    #     """
-
     def set_factual(self, factual):
         self.long_factual = self.mixed_encode(factual)
         self.short_factual = factual.copy().astype(np.float)
@@ -172,7 +91,7 @@ class LinearExplanation:
             if factual[i] > 0:
                 self.short_factual[i] /= self.cox[i].scale
 
-    "Helper functions"
+    # ------------------- Helper functions -------------------
 
     def mixed_encode(self, test_eg):
         out = np.zeros(self.encoded.shape[1])
@@ -216,8 +135,9 @@ class LinearExplanation:
     def recover_all_stack(self, var):
         return np.hstack(list(map(self.recover_stack, var)))
 
-    "Textual output helpers"
+    # ----------------- Textual output helpers -----------------
 
+    # these need to be set according to your dataset, see example
     special_val = {-9.0: ",i.e. No Bureau Record or No Investigation,",
                    -8.0: ",i.e. No Usable/Valid Accounts Trades or Inquiries,",
                    -7.0: ",i.e. Condition not Met ,"}
@@ -356,55 +276,3 @@ class LinearExplanation:
         assert n_explanations > 0
         self.build_structure(n_explanations)
         return self.get_explanations_at_once(labels)
-
-
-# def check_internal(a, b):
-#     gt = (frame[a] >= 0) & (frame[b] >= 0)
-#     return np.vstack((frame[a], frame[b])).T[gt]
-
-
-# def check(a, b):
-#     out = check_internal(a, b)
-#     return (np.all(out[:, 0] <= out[:, 1]),
-#             np.all(out[:, 0] == out[:, 1]),
-#             np.all(out[:, 0] >= out[:, 1]))
-
-
-def array_of_coefficient_names(self):
-    out = list()
-    for i in range(self.cox.shape[0]):
-        out.append(self.cox[i].name)
-        for j in (self.cox[i].unique):
-            out.append(self.cox[i].name + ' ' + str(j))
-
-    medians = np.median(self.encoded, 0)
-    recalc = (medians == 0)
-    medians[recalc] = np.mean(self.encoded, 0)[recalc]
-    return np.asarray(out), np.asarray(medians)
-
-
-def plot_coefficients(exp, filename='out.png', med_weight=False):
-    import matplotlib.pyplot as plt
-    bias = exp.model.intercept_[0]
-    coef = exp.model.coef_[0]
-    names, med = array_of_coefficient_names(exp)
-    if med_weight:
-        order = np.argsort(np.abs(coef * med))[::-1]
-    else:
-        order = np.argsort(np.abs(coef))[::-1]
-    y_pos = np.arange(1 + coef.shape[0])
-    plt.rcdefaults()
-    width = 8
-    height = 12
-
-    fig, ax = plt.subplots(figsize=(width, height))
-    ax.barh(y_pos, np.hstack((bias, coef[order])), align='center',
-            color='green')
-    ax.set_yticks(y_pos)
-    ax.set_yticklabels(np.hstack(('Bias', names[order])))
-    ax.invert_yaxis()  # labels read top-to-bottom
-    ax.set_xlabel('Magnitude ')
-    # ax.set_xscale('symlog')
-    ax.set_title('Variable Weights')
-    plt.savefig(filename)
-    plt.show()

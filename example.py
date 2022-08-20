@@ -1,9 +1,14 @@
-# Load data
-from counterfactual_better import LinearExplanation
+from model import LRModel
+from counterfactual import LinearExplanation
+# from visualizers import plot_coefficients
+from data import prepare_data
+
 import numpy as np
 import pandas as pd
+
 dataset = ['FICO', 'adult'][1]
 data_dir = ''  # '../data/FICO/'
+
 if dataset == 'FICO':
     # FICO case
     # load dataset
@@ -28,14 +33,15 @@ else:
     # extract input variables used to make prediction
     inputs = frame[frame.columns[0:8]]
 
-# Create the object and initialise it
-exp = LinearExplanation()
-exp.encode_pandas(inputs)
+encoded, context, constraints = prepare_data(inputs)
 # train the logistic regression classifier
-exp.train_logistic(target[train], train)
+model = LRModel(encoded, target[train], train)
 # if all the data is to be used for training use
 # the following line instead
-# exp.train_logistic(target)
+# LRModel(target)
+
+# Create the explanation object and initialise it
+exp = LinearExplanation(model, encoded, context, constraints)
 
 if dataset == 'adult':  # Modify the pretty printer for special values.
     exp.special_val = {'workclass': {0: 'Government', -3: 'Other/Unknown', -2: 'Private', -1: 'Self-Employed'},
