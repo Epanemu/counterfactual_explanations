@@ -36,5 +36,6 @@ generates counterfactual explanations.
 
 Thanks to Ramaravind Mothilal for helping with the adult demo.
 
-
-
+### Further contribution
+This is an extended version containing also generation of set number of mahtematically 
+closest explanations.
