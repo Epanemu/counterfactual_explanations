@@ -13,7 +13,6 @@ class LRModel:
 
     def evaluate(self, datum):
         """Provides a model prediction for a provided datum"""
-        # datum=self.recover_all_stack(datum.values)
         datum = datum.reshape(1, -1)
         return self.model.decision_function(datum)
 
