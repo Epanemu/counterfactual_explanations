@@ -6,7 +6,6 @@ def prepare_data(panda_inputs):
     """Build a training set of dummy encoded variables from existing input
     data"""
     context = np.empty(panda_inputs.columns.size, dtype=np.object)
-    constraints = np.empty_like(context)
     for i in range(panda_inputs.columns.shape[0]):
         col_data = panda_inputs[panda_inputs.columns[i]]
         discrete_vals = np.minimum(col_data, 0) # discrete values (0 represents continuous values if any)
@@ -51,4 +50,4 @@ def prepare_data(panda_inputs):
     # in further encoding, though, this is acounted for.
     encoded = np.vstack(list(map(lambda x: x.values_table, context))).T # n_rows X all_variables
 
-    return encoded, context, constraints
+    return encoded, context

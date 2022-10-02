@@ -33,7 +33,7 @@ else:
     # extract input variables used to make prediction
     input_data = frame[frame.columns[0:8]]
 
-encoded, context, constraints = prepare_data(input_data)
+encoded, context = prepare_data(input_data)
 # train the logistic regression classifier
 model = LRModel(encoded, target[train], train)
 # if all the data is to be used for training use
@@ -41,7 +41,7 @@ model = LRModel(encoded, target[train], train)
 # LRModel(target)
 
 # Create the explanation object and initialise it
-exp = LinearExplanation(model, encoded, context, constraints)
+exp = LinearExplanation(model, encoded, context)
 
 if dataset == 'adult':  # Modify the pretty printer for special values.
     exp.string_vals = {'workclass': {0: 'Government', -3: 'Other/Unknown', -2: 'Private', -1: 'Self-Employed'},
