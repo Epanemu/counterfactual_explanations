@@ -12,11 +12,10 @@ gb.setParam('OutputFlag', 0)
 
 
 class LinearExplanation:
-    def __init__(self, model, encoded, context, constraints):
+    def __init__(self, model, encoded, context):
         self.lrmodel = model
         self.encoded_data = encoded
         self.context = context
-        self.constraints = constraints
 
     def build_structure(self, n_explanations=1):
         """build the Core programme of the model that induces
