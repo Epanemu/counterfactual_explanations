@@ -8,6 +8,8 @@ import numpy as np
 import pandas as pd
 
 frame = pd.read_csv('adult_frame.csv')
+load_model_path = "model.pt"
+save_model_path = "model.pt"
 
 # create target binary i.e. {0,1} variable to predict
 target = np.asarray(frame['income'] == '>=50k')
@@ -21,8 +23,14 @@ X_train, X_test, y_train, y_test = train_test_split(encoded, target, test_size=0
 
 # train the NN
 model = NNModel(encoded.shape[1], hidden_sizes=[15, 10], output_size=1)
-model.train(X_train, y_train, batch_size=128, epochs=50)
-model.test(X_train, y_train)
+if load_model_path is None:
+    model.train(X_train, y_train, batch_size=128, epochs=50)
+    if save_model_path is None:
+        model.save(save_model_path)
+else:
+    model.load(load_model_path)
+
+# model.test(X_train, y_train)
 model.test(X_test, y_test)
 
 # Create the explanation object and initialise it

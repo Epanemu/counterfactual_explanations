@@ -27,6 +27,7 @@ class NNModel:
             prev_size = curr_size
         layers.append(nn.Linear(prev_size, output_size))
         # no ReLU on the output
+        self.layers = layers
 
         self.model = nn.Sequential(*layers)
         self.loss_f = nn.BCEWithLogitsLoss()
@@ -90,3 +91,11 @@ class NNModel:
                 biases.append(None)
 
         return types, weights, biases
+
+    def save(self, path="model.pt"):
+        torch.save([self.model.state_dict(), self.layers], path)
+
+    def load(self, path="model.pt"):
+        state_dict, self.layers = torch.load(path)
+        self.model = nn.Sequential(*self.layers)
+        self.model.load_state_dict(state_dict)
