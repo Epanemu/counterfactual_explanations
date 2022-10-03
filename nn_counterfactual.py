@@ -18,7 +18,7 @@ class NNExplanation:
         self.encoding_size = encoding_size
         self.context = context
 
-    def build_structure(self, n_explanations=1, verbose=False):
+    def build_structure(self, n_explanations=None, epsilon=None, verbose=False):
         """build the Core programme of the model that induces
         counterfactuals for the datapoint base_factual"""
         if not verbose:
@@ -119,7 +119,12 @@ class NNExplanation:
             self.counterfact_model.getObjective(), gb.GRB.MINIMIZE)
 
         # generating in bulk, set apropriate parameters
-        self.counterfact_model.setParam("PoolSolutions", n_explanations)
+        if n_explanations is not None:
+            self.counterfact_model.setParam("PoolSolutions", n_explanations)
+        elif epsilon is not None:
+            self.counterfact_model.setParam("PoolGap", epsilon)
+        else:
+            raise "Must set epsilon as relative distance to optimum or number of closest solutions"
         self.counterfact_model.setParam("PoolSearchMode", 2)
 
         # perform optimization
@@ -228,9 +233,16 @@ class NNExplanation:
                 explanations.append(self.explain_follow(values, labels))
         return explanations
 
-    def generate_explanations(self, datapoint, n_explanations=100, labels=("'good'", "'bad'")):
+    def generate_n_explanations(self, datapoint, n_explanations, labels=("'good'", "'bad'")):
         assert n_explanations > 0
 
         self.set_factual(datapoint)
-        self.build_structure(n_explanations)
+        self.build_structure(n_explanations=n_explanations)
+        return self.get_explanations(labels)
+
+    def generate_close_explanations(self, datapoint, epsilon, labels=("'good'", "'bad'")):
+        assert epsilon > 0
+
+        self.set_factual(datapoint)
+        self.build_structure(epsilon=epsilon)
         return self.get_explanations(labels)

@@ -51,6 +51,12 @@ print("Prediction:", model.predict(exp.mixed_encode(in_data)))
 
 n = 10
 print(f"{n} best counterfactuals:")
-explanations = exp.generate_explanations(in_data, n, labels=("GOOD","BAD"))
+explanations = exp.generate_n_explanations(in_data, n, labels=("GOOD","BAD"))
+for e in explanations:
+    print(e)
+
+print()
+print(f"Counterfactuals close to optimum:")
+explanations = exp.generate_close_explanations(in_data, 0.1, labels=("GOOD","BAD"))
 for e in explanations:
     print(e)
