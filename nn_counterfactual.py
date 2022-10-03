@@ -10,7 +10,6 @@ based on the work of Criss Russel
 import numpy as np
 from types import SimpleNamespace
 import gurobipy as gb
-# gb.setParam('OutputFlag', 0)
 
 
 class NNExplanation:
@@ -19,9 +18,11 @@ class NNExplanation:
         self.encoding_size = encoding_size
         self.context = context
 
-    def build_structure(self, n_explanations=1):
+    def build_structure(self, n_explanations=1, verbose=False):
         """build the Core programme of the model that induces
         counterfactuals for the datapoint base_factual"""
+        if not verbose:
+            gb.setParam('OutputFlag', 0)
 
         self.counterfact_model = gb.Model()
 
@@ -123,7 +124,8 @@ class NNExplanation:
 
         # perform optimization
         self.counterfact_model.optimize()
-        self.counterfact_model.display()
+        if verbose:
+            self.counterfact_model.display()
 
 
     def set_factual(self, factual):
