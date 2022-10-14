@@ -8,9 +8,11 @@ Created on Fri 30 Sep 21:47:32 CEST 2022
 based on the work of Criss Russel
 """
 import numpy as np
-from types import SimpleNamespace
+# from types import SimpleNamespace
 import gurobipy as gb
 
+from collections import namedtuple
+Var = namedtuple('Var', ['cont_vars', 'dec_vars', 'orig_val', 'disc_opts'])
 
 class NNExplanation:
     def __init__(self, model, encoding_size, context):
@@ -71,8 +73,7 @@ class NNExplanation:
             for dvar in dec_vars[1:]:
                 x_input.append(dvar)
 
-            self.vars[i] = SimpleNamespace(
-                cont_vars=cont_vars, dec_vars=dec_vars, orig_val=curr_value, disc_opts=curr_context.disc_opts)
+            self.vars[i] = Var(cont_vars=cont_vars, dec_vars=dec_vars, orig_val=curr_value, disc_opts=curr_context.disc_opts)
 
         # setup the neural network computation within the ILP model
         types, weights, biases = self.nn_model.get_params()
