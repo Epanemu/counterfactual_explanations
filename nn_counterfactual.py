@@ -104,6 +104,8 @@ class NNExplanation:
                 # ReLU indicator constraints
                 self.counterfact_model.addConstrs(((z_indicator[j] == 1) >> (pos_next[j] <= 0) for j in range(n_units)), name=f"zpos{i}")
                 self.counterfact_model.addConstrs(((z_indicator[j] == 0) >> (neg_next[j] <= 0) for j in range(n_units)), name=f"zneg{i}")
+                # uniqueness s
+                self.counterfact_model.addConstrs((z_indicator[j] <= (pos_next[j] + neg_next[j])*10e12 for j in range(n_units)), name=f"zcheck{i}")
 
                 x_prev = np.array(pos_next.values()) # ReLU makes only the positive values to progress further
             else:
@@ -162,12 +164,15 @@ class NNExplanation:
     def recover_val(self, variable):
         dec_values = np.asarray(list(map(lambda x: x.Xn, variable.dec_vars)))
         selected_i = np.argmax(dec_values)
-        assert (np.abs(1 - dec_values.sum()) < 10**-4) # check redundant, in case we use this only with the model, this is taken care of by a constraint
+        assert (np.abs(1 - dec_values.sum()) < 10e-6) # check redundant, in case we use this only with the model, this is taken care of by a constraint
         cont_vars = variable.cont_vars
         if selected_i == 0: # return continuous
             return variable.orig_val - cont_vars[0].Xn + cont_vars[1].Xn
 
-        assert (np.abs(cont_vars[0].Xn + cont_vars[1].Xn) < 10**-4) # this should be true since the objective is minimized and both are part of it
+        # this should be true in the Logistic regression case since the objective is minimized and both are part of it
+        assert (np.abs(cont_vars[0].Xn + cont_vars[1].Xn) < 10e-6)
+        # but here the value, although minimized, can have influence high enough to justify increasing of the objective value by less than other way might
+
         return variable.disc_opts[selected_i - 1]
 
     def recover_all_val(self):
@@ -190,7 +195,7 @@ class NNExplanation:
         orig_res = labels[int(not self.fact_sign > 0)]
         counterfact = labels[int(not self.desired_sign > 0)]
 
-        mask = np.abs(values - self.base_factual) > 0.001
+        mask = np.abs(values - self.base_factual) > 10e-3
         explain = (f"You got score {orig_res}.\n" +
                    f"One way you could have got score {counterfact} instead is if:\n")
         changes_str = ""
@@ -227,9 +232,34 @@ class NNExplanation:
 
     def get_explanations(self, labels):
         explanations = []
+        prev_vals = []
         for i in range(self.counterfact_model.SolCount):
             self.counterfact_model.setParam("SolutionNumber", i)
             values = self.recover_all_val()
+
+
+            # vals = []
+            # for var in self.vars:
+            #     vals += [v.Xn for v in var.cont_vars]
+            #     # vals += [v.Xn for v in var.dec_vars]
+
+            vals = [v.Xn for v in self.counterfact_model.getVars()]
+            names = [v.varName for v in self.counterfact_model.getVars()]
+            # print(i)
+            # print(list(zip(names,vals)))
+
+            # print(list(filter(lambda x: abs(x) > 10e-3, map(lambda v: v[0] - v[1], zip(prev_vals, vals)))))
+            diffs = list(filter(lambda x: abs(x[1]) > 10e-3, enumerate(map(lambda v: v[0] - v[1], zip(prev_vals, vals)))))
+            if len(diffs) > 0:
+                print("DIFFERENCES")
+                # print(diffs)
+                print([names[d[0]] for d in diffs])
+                # print(prev_vals == vals)
+                print()
+
+            prev_vals = vals.copy()
+
+
             if i == 0:
                 explanations.append(self.explain(values, labels))
             else:
