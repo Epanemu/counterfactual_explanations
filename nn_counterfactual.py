@@ -183,9 +183,8 @@ class NNExplanation:
         if selected_i == 0: # return continuous
             return variable.orig_val - cont_vars[0].Xn + cont_vars[1].Xn
 
-        # this should be true in the Logistic regression case since the objective is minimized and both are part of it
+        # this should hold true
         assert (np.abs(cont_vars[0].Xn + cont_vars[1].Xn) < 10e-6)
-        # but here the value, although minimized, can have influence high enough to justify increasing of the objective value by less than other way might
 
         return variable.disc_opts[selected_i - 1]
 
@@ -245,39 +244,15 @@ class NNExplanation:
     #     return out
 
     def get_explanations(self, labels):
-        explanations = []
-        prev_vals = []
-        for i in range(self.counterfact_model.SolCount):
+        self.counterfact_model.setParam("SolutionNumber", 0)
+        values = self.recover_all_val()
+        explanations = [self.explain(values, labels)]
+
+        for i in range(1, self.counterfact_model.SolCount):
             self.counterfact_model.setParam("SolutionNumber", i)
             values = self.recover_all_val()
+            explanations.append(self.explain_follow(values, labels))
 
-
-            # vals = []
-            # for var in self.vars:
-            #     vals += [v.Xn for v in var.cont_vars]
-            #     # vals += [v.Xn for v in var.dec_vars]
-
-            vals = [v.Xn for v in self.counterfact_model.getVars()]
-            names = [v.varName for v in self.counterfact_model.getVars()]
-            # print(i)
-            # print(list(zip(names,vals)))
-
-            # print(list(filter(lambda x: abs(x) > 10e-3, map(lambda v: v[0] - v[1], zip(prev_vals, vals)))))
-            diffs = list(filter(lambda x: abs(x[1]) > 10e-3, enumerate(map(lambda v: v[0] - v[1], zip(prev_vals, vals)))))
-            if len(diffs) > 0:
-                print("DIFFERENCES")
-                # print(diffs)
-                print([names[d[0]] for d in diffs])
-                # print(prev_vals == vals)
-                print()
-
-            prev_vals = vals.copy()
-
-
-            if i == 0:
-                explanations.append(self.explain(values, labels))
-            else:
-                explanations.append(self.explain_follow(values, labels))
         return explanations
 
     def generate_n_explanations(self, datapoint, n_explanations, labels=("'good'", "'bad'"), verbose=False):
