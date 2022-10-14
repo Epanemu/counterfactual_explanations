@@ -14,10 +14,9 @@ from collections import namedtuple
 Var = namedtuple('Var', ['cont_vars', 'dec_vars', 'orig_val', 'disc_opts'])
 
 class NNExplanation:
-    def __init__(self, model, encoding_size, context):
+    def __init__(self, model, encoder):
         self.nn_model = model
-        self.encoding_size = encoding_size
-        self.context = context
+        self.encoder = encoder
 
     def build_structure(self, n_explanations=None, epsilon=None, verbose=False):
         """build the Core programme of the model that induces
@@ -32,10 +31,10 @@ class NNExplanation:
         # --- set the input variable constraints and build x_input ~ the inputs
         x_input = []
 
-        self.vars = np.empty(self.context.shape[0], dtype=np.object)
-        for i in range(self.context.shape[0]):
+        self.vars = np.empty(self.encoder.n_vars, dtype=np.object)
+        for i in range(self.encoder.n_vars):
             curr_value = self.base_factual[i]
-            curr_context = self.context[i]
+            curr_context = self.encoder.context[i]
             dec_count = curr_context.median_vals.shape[0] # number of binary decision variables
 
             # signs for decision variables [0 for continuous ; 1 for all decision variables, except if one is selected, then -1]
@@ -146,30 +145,14 @@ class NNExplanation:
 
 
     def set_factual(self, factual):
-        self.expanded_factual = self.mixed_encode(factual)
+        self.expanded_factual = self.encoder.encode_datapoint(factual)
         self.base_factual = factual.copy().astype(np.float)
         for i in range(factual.size):
             if factual[i] > 0:
-                self.base_factual[i] /= self.context[i].scale # normalize continuous values
+                self.base_factual[i] /= self.encoder.context[i].scale # normalize continuous values
 
 
     # ------------------- Helper functions -------------------
-
-    def mixed_encode(self, datapoint):
-        encoded = np.zeros(self.encoding_size)
-        index = 0
-        for data, ctx in zip(datapoint, self.context):
-            if ctx.scale == 0: # fully discrete
-                val_i = (ctx.disc_opts == data).argmax()
-                encoded[index + val_i] = 1
-            else: # combined or fully continuous
-                if data < 0: # discrete
-                    val_i = (ctx.disc_opts == data).argmax()
-                    encoded[index + val_i + 1] = 1
-                else:
-                    encoded[index] = data / ctx.scale
-            index += ctx.median_vals.shape[0]
-        return encoded
 
     def recover_val(self, variable):
         dec_values = np.asarray(list(map(lambda x: x.Xn, variable.dec_vars)))
@@ -198,11 +181,11 @@ class NNExplanation:
     string_vals = None
 
     def format_value(self, value, i):
-        val_names = self.string_vals.get(self.context[i].name, self.string_vals)
+        val_names = self.string_vals.get(self.encoder.context[i].name, self.string_vals)
         str_val = val_names.get(value, '')
         if str_val != "":
             return str_val + f" ({np.round(value).astype(int)})"
-        return f"{np.round(value * self.context[i].scale, 2)}"
+        return f"{np.round(value * self.encoder.context[i].scale, 2)}"
 
     def explain(self, values, labels=("'good'", "'bad'")):
         orig_res = labels[int(not self.fact_sign > 0)]
@@ -214,7 +197,7 @@ class NNExplanation:
         changes_str = ""
         for i in range(mask.size):
             if mask[i]:
-                changes_str += (f"  {self.context[i].name} had taken value "
+                changes_str += (f"  {self.encoder.context[i].name} had taken value "
                       + f"{self.format_value(values[i], i)} rather than "
                       + f"{self.format_value(self.base_factual[i], i)} and \n")
         explain += changes_str[:-6] # drop " and \n" from the end
@@ -228,7 +211,7 @@ class NNExplanation:
         changes_str = ""
         for i in range(mask.size):
             if mask[i]:
-                changes_str += (f"  {self.context[i].name} had taken value "
+                changes_str += (f"  {self.encoder.context[i].name} had taken value "
                       + f"{self.format_value(values[i], i)} rather than "
                       + f"{self.format_value(self.base_factual[i], i)} and \n")
         explain += changes_str[:-6] # drop " and \n" from the end

@@ -1,7 +1,7 @@
 from nn_model import NNModel
 from nn_counterfactual import NNExplanation
 
-from data import prepare_data
+from data import MixedEncoder
 from sklearn.model_selection import train_test_split
 
 import numpy as np
@@ -15,7 +15,8 @@ target = np.asarray(frame['income'] == '>=50k')
 
 # extract input variables used to make prediction
 input_data = frame[frame.columns[0:8]]
-encoded, context = prepare_data(input_data)
+encoder = MixedEncoder(input_data)
+encoded = encoder.get_encoded_data()
 
 # partition into train and test, y ~ target, X ~ input data
 X_train, X_test, y_train, y_test = train_test_split(encoded, target, test_size=0.2, random_state=42)
@@ -35,7 +36,7 @@ else:
 # model.test(X_test, y_test)
 
 # Create the explanation object and initialise it
-exp = NNExplanation(model, encoded.shape[1], context)
+exp = NNExplanation(model, encoder)
 
 exp.string_vals = {'workclass': {0: 'Government', -3: 'Other/Unknown', -2: 'Private', -1: 'Self-Employed'},
                     'education': {0: 'Assoc', -7: 'Bachelors', -6: 'Doctorate', -5: 'HS-grad', -4: 'Masters', -3: 'Prof-school', -2: 'School', -1: 'Some-college'},
@@ -48,7 +49,7 @@ exp.string_vals = {'workclass': {0: 'Government', -3: 'Other/Unknown', -2: 'Priv
 # index of datapoint to be explained
 i = 409
 in_data = input_data.iloc[i].values
-# print("Prediction:", model.predict(exp.mixed_encode(in_data)))
+# print("Prediction:", model.predict(encoder.encode_datapoint(in_data)))
 
 n = 100
 print(f"{n} best counterfactuals:")
@@ -78,7 +79,7 @@ if custom_change:
     in_data[0] = 29.375
     print()
     print(f"Same data point with a custom change:")
-    print("Prediction:", model.predict(exp.mixed_encode(in_data)))
+    print("Prediction:", model.predict(encoder.encode_datapoint(in_data)))
     n = 1
     print(f"{n} best counterfactuals:")
     explanations = exp.generate_n_explanations(in_data, n, labels=("GOOD","BAD"))
