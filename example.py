@@ -49,13 +49,20 @@ textualizer = Textualizer(string_vals, encoder)
 
 
 # index of datapoint to be explained
-i = 409
+i = 309
 in_data = input_data.iloc[i].values
 # print("Prediction:", model.predict(encoder.encode_datapoint(in_data)))
 
-n = 100
+n = 3
 print(f"{n} best counterfactuals:")
 counterfactuals = cf_generator.generate_n_counterfactuals(in_data, n)
+for cf in textualizer.formulate_list(counterfactuals, cf_generator, labels=("GOOD","BAD")):
+    print(cf)
+
+print()
+dist = 1
+print(f"{n} best counterfactuals with distance {dist}:")
+counterfactuals = cf_generator.generate_n_counterfactuals(in_data, n, cf_distance=dist)
 for cf in textualizer.formulate_list(counterfactuals, cf_generator, labels=("GOOD","BAD")):
     print(cf)
 

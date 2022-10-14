@@ -18,9 +18,13 @@ class CounterfactualGenerator:
         self.nn_model = model
         self.encoder = encoder
 
-    def __build_structure(self, n_counterfactuals=None, epsilon=None, verbose=False):
-        """build the Core programme of the model that induces
-        counterfactuals for the datapoint base_factual"""
+    def __build_structure(self, n_counterfactuals=None, epsilon=None, verbose=False, cf_distance=0):
+        """
+        build the Core programme of the model that induces
+        counterfactuals for the datapoint base_factual
+        """
+        assert cf_distance >= 0
+
         if not verbose:
             gb.setParam('OutputFlag', 0)
         else:
@@ -122,7 +126,8 @@ class CounterfactualGenerator:
                 x_prev = np.array(x_next.values())
 
         # this expects a single output unit for binary clasification
-        self.counterfact_model.addConstr(x_prev[0] * self.desired_sign >= 0, name="model_result")
+        # cf_distance can ensure strong enough results, but leads to infeasibility if too high
+        self.counterfact_model.addConstr(x_prev[0] * self.desired_sign >= cf_distance, name="model_result")
         self.counterfact_model.setObjective(
             self.counterfact_model.getObjective(), gb.GRB.MINIMIZE)
 
@@ -139,6 +144,9 @@ class CounterfactualGenerator:
         self.counterfact_model.optimize()
         if verbose:
             self.counterfact_model.display()
+
+        if self.counterfact_model.status == gb.GRB.INFEASIBLE:
+            print("INFEASIBLE MODEL")
 
 
     def __set_factual(self, factual):
@@ -175,14 +183,14 @@ class CounterfactualGenerator:
 
     # --------------- Counterfactual Generetator functions ----------------------
 
-    def explain_set(self, entries, epsilon=None, n_counterfactuals=None, verbose=False):
+    def explain_set(self, entries, epsilon=None, n_counterfactuals=None, verbose=False, cf_distance=0):
         assert epsilon is not None or n_counterfactuals is not None
         out = []
         for entry in entries:
             if n_counterfactuals is None:
-                out.append(self.generate_close_counterfactuals(entry, epsilon, verbose=verbose))
+                out.append(self.generate_close_counterfactuals(entry, epsilon, verbose=verbose, cf_distance=cf_distance))
             else:
-                out.append(self.generate_n_counterfactuals(entry, n_counterfactuals, verbose=verbose))
+                out.append(self.generate_n_counterfactuals(entry, n_counterfactuals, verbose=verbose, cf_distance=cf_distance))
         return out
 
     def __get_counterfactuals(self):
@@ -192,14 +200,14 @@ class CounterfactualGenerator:
             values.append(self.__recover_all_vals())
         return values
 
-    def generate_n_counterfactuals(self, datapoint, n_counterfactuals, verbose=False):
+    def generate_n_counterfactuals(self, datapoint, n_counterfactuals, verbose=False, cf_distance=0):
         assert n_counterfactuals > 0
         self.__set_factual(datapoint)
-        self.__build_structure(n_counterfactuals=n_counterfactuals, verbose=verbose)
+        self.__build_structure(n_counterfactuals=n_counterfactuals, verbose=verbose, cf_distance=cf_distance)
         return self.__get_counterfactuals()
 
-    def generate_close_counterfactuals(self, datapoint, epsilon, verbose=False):
+    def generate_close_counterfactuals(self, datapoint, epsilon, verbose=False, cf_distance=0):
         assert epsilon > 0
         self.__set_factual(datapoint)
-        self.__build_structure(epsilon=epsilon, verbose=verbose)
+        self.__build_structure(epsilon=epsilon, verbose=verbose, cf_distance=cf_distance)
         return self.__get_counterfactuals()
