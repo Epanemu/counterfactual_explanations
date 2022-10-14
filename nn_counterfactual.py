@@ -25,6 +25,8 @@ class NNExplanation:
         counterfactuals for the datapoint base_factual"""
         if not verbose:
             gb.setParam('OutputFlag', 0)
+        else:
+            gb.setParam('OutputFlag', 1)
 
         self.counterfact_model = gb.Model()
 
@@ -234,16 +236,16 @@ class NNExplanation:
                 explanations.append(self.explain_follow(values, labels))
         return explanations
 
-    def generate_n_explanations(self, datapoint, n_explanations, labels=("'good'", "'bad'")):
+    def generate_n_explanations(self, datapoint, n_explanations, labels=("'good'", "'bad'"), verbose=False):
         assert n_explanations > 0
 
         self.set_factual(datapoint)
-        self.build_structure(n_explanations=n_explanations)
+        self.build_structure(n_explanations=n_explanations, verbose=verbose)
         return self.get_explanations(labels)
 
-    def generate_close_explanations(self, datapoint, epsilon, labels=("'good'", "'bad'")):
+    def generate_close_explanations(self, datapoint, epsilon, labels=("'good'", "'bad'"), verbose=False):
         assert epsilon > 0
 
         self.set_factual(datapoint)
-        self.build_structure(epsilon=epsilon)
+        self.build_structure(epsilon=epsilon, verbose=verbose)
         return self.get_explanations(labels)
