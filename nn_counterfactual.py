@@ -236,12 +236,16 @@ class NNExplanation:
 
     # --------------- Explanations Generetator functions ----------------------
 
-    # def explain_set(self, entries, upto=10):
-    #     out = np.empty((entries.shape[0], upto), dtype=np.object)
-    #     for i in range(entries.shape[0]):
-    #         tmp = np.hstack(self.explain_datapoint(entries[i], upto))
-    #         out[i, :tmp.shape[0]] = tmp
-    #     return out
+    def explain_set(self, entries, epsilon=None, n_explanations=None, labels=("'good'", "'bad'"), verbose=False):
+        assert epsilon is not None or n_explanations is not None
+
+        out = []
+        for i in range(entries.shape[0]):
+            if n_explanations is None:
+                out.append(self.generate_close_explanations(entries[i], epsilon, labels=labels, verbose=verbose))
+            else:
+                out.append(self.generate_n_explanations(entries[i], n_explanations, labels=labels, verbose=verbose))
+        return out
 
     def get_explanations(self, labels):
         self.counterfact_model.setParam("SolutionNumber", 0)

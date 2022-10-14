@@ -67,10 +67,10 @@ if get_by_distance:
 
 explain_all = False
 if explain_all:
-    explanations = exp.explain_set(input_data.values, 12)
+    explanations = exp.explain_set(input_data.values, n_explanations=5)
+    # explanations = exp.explain_set(input_data.values, epsilon=1)
     exp2 = pd.DataFrame(explanations)
     exp2.to_csv('test.csv')
-
 
 custom_change = False
 if custom_change:
