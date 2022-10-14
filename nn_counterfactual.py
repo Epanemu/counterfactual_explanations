@@ -8,7 +8,6 @@ Created on Fri 30 Sep 21:47:32 CEST 2022
 based on the work of Criss Russel
 """
 import numpy as np
-# from types import SimpleNamespace
 import gurobipy as gb
 
 from collections import namedtuple
@@ -42,42 +41,50 @@ class NNExplanation:
             # signs for decision variables [0 for continuous ; 1 for all decision variables, except if one is selected, then -1]
             # decision for continuous does not influence the objective, and since we minimize, the selected is lowering the objective
             sign = np.ones(dec_count)
-            if curr_value < 0: # current value is < 0 if it is discrete (if all are discrete, current value 0 is also one of the discrete values)
-                index = (curr_context.disc_opts == curr_value).argmax()
-                sign[index + 1] = -1
-                curr_value = curr_context.median_vals[0]
-            sign[0] = 0
-            cont_ub = np.asarray((curr_value, 1 - curr_value)) # curr_value is normalized between 0 and 1
-            cont_vars = self.counterfact_model.addVars(2, lb=0, ub=cont_ub, obj=curr_context.inv_MAD[0], name=f"cont{i}")
-            cont_vars = np.asarray(cont_vars.values())
-            # there is no minimization of the first decision variable (typically for continuous values), which in case of fully discrete variable
-            # makes the choice of option 0 closer and more preferable then options in the negative (-i) form. For these we need to change
-            # current option from 1 to 0 and the ith option from 0 to 1. The second change is penalized only for i != 0
-            # It is done this way to not penalize the continuous variable more than appropriate, so I would argue that there is a better option of
-            # handling this, by introducing another variable and disabling the continuous spectrum
+
+            if curr_context.scale == 0: # variable is fully discrete
+                disc_index = (curr_context.disc_opts == curr_value).argmax()
+                sign[disc_index] = -1
+                dec_as_input_from = 0 # all decision variables serve as input to the neural network
+            else: # there are some continuous values
+                if curr_value < 0: # current value is < 0 if it is discrete
+                    disc_index = (curr_context.disc_opts == curr_value).argmax()
+                    sign[disc_index + 1] = -1 # shifted by 1 because at index 0 is dec variable for continuous spectrum
+                    # set the value to median value, because when switched to continuous, it should take the median value
+                    curr_value = curr_context.median_vals[0]
+
+                sign[0] = 0 # disregard the first decision variable, deciding if it is continuous
+                dec_as_input_from = 1 # as input to the neural network are all decision variables, except the one for continuous
+
             dec_vars = self.counterfact_model.addVars(dec_count, lb=0, ub=1, obj=sign * curr_context.inv_MAD, vtype=gb.GRB.BINARY, name=f"dec{i}")
             dec_vars = np.asarray(dec_vars.values())
             self.counterfact_model.addConstr(dec_vars.sum() == 1) # (4) in paper, single one must be selected
 
-            if curr_value == 0:
-                self.counterfact_model.addConstr(cont_vars[1] <= dec_vars[0], name=f"cont_change{i}") # otherwise we would divide by 0
-            elif curr_value == 1:
-                self.counterfact_model.addConstr(cont_vars[0] <= dec_vars[0], name=f"cont_change{i}") # otherwise we would divide by 0
-            else:
-                # disable change ov value if discrete decision is made
-                self.counterfact_model.addConstr(
-                    cont_vars[0] / cont_ub[0] + cont_vars[1] / cont_ub[1] <= dec_vars[0], name=f"cont_change{i}")
+            if dec_as_input_from == 1: # need to add continuous variable setup
+                cont_ub = np.asarray((curr_value, 1 - curr_value)) # continous values are normalized between 0 and 1
+                cont_vars = self.counterfact_model.addVars(2, lb=0, ub=cont_ub, obj=curr_context.inv_MAD[0], name=f"cont{i}")
+                cont_vars = np.asarray(cont_vars.values())
+
+                if curr_value == 0:
+                    self.counterfact_model.addConstr(cont_vars[1] <= dec_vars[0], name=f"cont_change{i}") # otherwise we would divide by 0
+                elif curr_value == 1:
+                    self.counterfact_model.addConstr(cont_vars[0] <= dec_vars[0], name=f"cont_change{i}") # otherwise we would divide by 0
+                else:
+                    # disable change of value if discrete decision is made
+                    self.counterfact_model.addConstr(
+                        cont_vars[0] / cont_ub[0] + cont_vars[1] / cont_ub[1] <= dec_vars[0], name=f"cont_change{i}")
+
+                # add continuous variables to the x_input vector
+                x_input.append(curr_value * dec_vars[0] - cont_vars[0] + cont_vars[1])
 
             self.counterfact_model.update()
 
-            # add variables to the x_input vector
-            x_input.append(curr_value * dec_vars[0] - cont_vars[0] + cont_vars[1])
-            for dvar in dec_vars[1:]:
+            for dvar in dec_vars[dec_as_input_from:]:
                 x_input.append(dvar)
 
             self.vars[i] = Var(cont_vars=cont_vars, dec_vars=dec_vars, orig_val=curr_value, disc_opts=curr_context.disc_opts)
 
-        # setup the neural network computation within the ILP model
+        # setup of the neural network computation within the ILP model
         types, weights, biases = self.nn_model.get_params()
         for t in types:
             if t not in ["linear", "ReLU"]:
@@ -104,7 +111,7 @@ class NNExplanation:
                 # ReLU indicator constraints
                 self.counterfact_model.addConstrs(((z_indicator[j] == 1) >> (pos_next[j] <= 0) for j in range(n_units)), name=f"zpos{i}")
                 self.counterfact_model.addConstrs(((z_indicator[j] == 0) >> (neg_next[j] <= 0) for j in range(n_units)), name=f"zneg{i}")
-                # uniqueness s
+                # reqiure basic uniqueness
                 self.counterfact_model.addConstrs((z_indicator[j] <= (pos_next[j] + neg_next[j])*10e12 for j in range(n_units)), name=f"zcheck{i}")
 
                 x_prev = np.array(pos_next.values()) # ReLU makes only the positive values to progress further
@@ -151,20 +158,27 @@ class NNExplanation:
     def mixed_encode(self, datapoint):
         encoded = np.zeros(self.encoding_size)
         index = 0
-        for i in range(self.context.shape[0]): # i as index of data columns
-            c = self.context[i]
-            if datapoint[i] < 0: # discrete
-                val_i = (c.disc_opts == datapoint[i]).argmax()
-                encoded[index + val_i + 1] = 1
-            else:
-                encoded[index] = datapoint[i] / c.scale
-            index += c.disc_opts.size + 1
+        for data, ctx in zip(datapoint, self.context):
+            if ctx.scale == 0: # fully discrete
+                val_i = (ctx.disc_opts == data).argmax()
+                encoded[index + val_i] = 1
+            else: # combined or fully continuous
+                if data < 0: # discrete
+                    val_i = (ctx.disc_opts == data).argmax()
+                    encoded[index + val_i + 1] = 1
+                else:
+                    encoded[index] = data / ctx.scale
+            index += ctx.median_vals.shape[0]
         return encoded
 
     def recover_val(self, variable):
         dec_values = np.asarray(list(map(lambda x: x.Xn, variable.dec_vars)))
         selected_i = np.argmax(dec_values)
-        assert (np.abs(1 - dec_values.sum()) < 10e-6) # check redundant, in case we use this only with the model, this is taken care of by a constraint
+
+        if dec_values.shape[0] == variable.disc_opts.shape[0]:
+            # all decisions are for discrete values, it is a fully discrete variable
+            return variable.disc_opts[selected_i]
+
         cont_vars = variable.cont_vars
         if selected_i == 0: # return continuous
             return variable.orig_val - cont_vars[0].Xn + cont_vars[1].Xn
