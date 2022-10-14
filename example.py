@@ -1,5 +1,5 @@
 from nn_model import NNModel
-from nn_counterfactual import CounterfactualGenerator
+from counterfactual_generator import CounterfactualGenerator
 from textualizer import Textualizer
 
 from data import MixedEncoder
