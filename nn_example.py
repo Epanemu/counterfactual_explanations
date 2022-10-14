@@ -8,8 +8,7 @@ import numpy as np
 import pandas as pd
 
 frame = pd.read_csv('adult_frame.csv')
-load_model_path = "model.pt"
-save_model_path = "model.pt"
+model_path = "model.pt"
 
 # create target binary i.e. {0,1} variable to predict
 target = np.asarray(frame['income'] == '>=50k')
@@ -23,14 +22,16 @@ X_train, X_test, y_train, y_test = train_test_split(encoded, target, test_size=0
 
 # train the NN
 model = NNModel(encoded.shape[1], hidden_sizes=[15, 10], output_size=1)
-if load_model_path is None:
+to_train = False
+if to_train:
     model.train(X_train, y_train, batch_size=128, epochs=50)
-    if save_model_path is None:
-        model.save(save_model_path)
+    model.save(model_path)
 else:
-    model.load(load_model_path)
+    model.load(model_path)
 
+# print("Train data:")
 # model.test(X_train, y_train)
+# print("Test data:")
 # model.test(X_test, y_test)
 
 # Create the explanation object and initialise it
@@ -74,7 +75,7 @@ if explain_all:
 custom_change = False
 if custom_change:
     in_data = in_data.astype(float)
-    in_data[0] = 33.19
+    in_data[0] = 29.375
     print()
     print(f"Same data point with a custom change:")
     print("Prediction:", model.predict(exp.mixed_encode(in_data)))
