@@ -1,5 +1,6 @@
 from nn_model import NNModel
-from nn_counterfactual import NNExplanation
+from nn_counterfactual import CounterfactualGenerator
+from textualizer import Textualizer
 
 from data import MixedEncoder
 from sklearn.model_selection import train_test_split
@@ -36,14 +37,15 @@ else:
 # model.test(X_test, y_test)
 
 # Create the explanation object and initialise it
-exp = NNExplanation(model, encoder)
+cf_generator = CounterfactualGenerator(model, encoder)
 
-exp.string_vals = {'workclass': {0: 'Government', -3: 'Other/Unknown', -2: 'Private', -1: 'Self-Employed'},
-                    'education': {0: 'Assoc', -7: 'Bachelors', -6: 'Doctorate', -5: 'HS-grad', -4: 'Masters', -3: 'Prof-school', -2: 'School', -1: 'Some-college'},
-                    'marital_status': {0: 'Divorced', -4: 'Married', -3: 'Separated', -2: 'Single', -1: 'Widowed'},
-                    'occupation': {0: 'Blue-Collar', -5: 'Other/Unknown', -4: 'Professional', -3: 'Sales', -2: 'Service', -1: 'White-Collar'},
-                    'race': {0: 'Non-White', -1: 'White'},
-                    'gender': {0: 'Female', -1: 'Male'}}
+string_vals = {'workclass': {0: 'Government', -3: 'Other/Unknown', -2: 'Private', -1: 'Self-Employed'},
+                'education': {0: 'Assoc', -7: 'Bachelors', -6: 'Doctorate', -5: 'HS-grad', -4: 'Masters', -3: 'Prof-school', -2: 'School', -1: 'Some-college'},
+                'marital_status': {0: 'Divorced', -4: 'Married', -3: 'Separated', -2: 'Single', -1: 'Widowed'},
+                'occupation': {0: 'Blue-Collar', -5: 'Other/Unknown', -4: 'Professional', -3: 'Sales', -2: 'Service', -1: 'White-Collar'},
+                'race': {0: 'Non-White', -1: 'White'},
+                'gender': {0: 'Female', -1: 'Male'}}
+textualizer = Textualizer(string_vals, encoder)
 
 
 # index of datapoint to be explained
@@ -53,24 +55,27 @@ in_data = input_data.iloc[i].values
 
 n = 100
 print(f"{n} best counterfactuals:")
-explanations = exp.generate_n_explanations(in_data, n, labels=("GOOD","BAD"))
-for e in explanations:
-    print(e)
+counterfactuals = cf_generator.generate_n_counterfactuals(in_data, n)
+for cf in textualizer.formulate_list(counterfactuals, cf_generator, labels=("GOOD","BAD")):
+    print(cf)
 
 get_by_distance = False
 relative_distance_q = 100 # number of times the optimal value (~distance the closest counterfactual to the factual)
 if get_by_distance:
     print()
     print(f"Counterfactuals close to optimum:")
-    explanations = exp.generate_close_explanations(in_data, relative_distance_q, labels=("GOOD","BAD"), verbose=False)
-    for e in explanations:
-        print(e)
+    counterfactuals = cf_generator.generate_close_counterfactuals(in_data, relative_distance_q, verbose=False)
+    for cf in textualizer.formulate_list(counterfactuals, cf_generator, labels=("GOOD","BAD")):
+        print(cf)
 
 explain_all = False
 if explain_all:
-    explanations = exp.explain_set(input_data.values, n_explanations=5)
-    # explanations = exp.explain_set(input_data.values, epsilon=1)
-    exp2 = pd.DataFrame(explanations)
+    counterfactuals_list = cf_generator.explain_set(input_data.values, n_counterfactuals=5)
+    # counterfactuals_list = cf_generator.explain_set(input_data.values, epsilon=1)
+    textual_data = []
+    for counterfactuals in counterfactuals_list:
+        textual_data.append(textualizer.formulate_list(counterfactuals, cf_generator, labels=("GOOD","BAD")))
+    exp2 = pd.DataFrame(textual_data)
     exp2.to_csv('test.csv')
 
 custom_change = False
@@ -82,6 +87,6 @@ if custom_change:
     print("Prediction:", model.predict(encoder.encode_datapoint(in_data)))
     n = 1
     print(f"{n} best counterfactuals:")
-    explanations = exp.generate_n_explanations(in_data, n, labels=("GOOD","BAD"))
-    for e in explanations:
-        print(e)
+    counterfactuals = cf_generator.generate_n_counterfactuals(in_data, n)
+    for cf in textualizer.formulate_list(counterfactuals, cf_generator, labels=("GOOD","BAD")):
+        print(cf)

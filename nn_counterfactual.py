@@ -13,12 +13,12 @@ import gurobipy as gb
 from collections import namedtuple
 Var = namedtuple('Var', ['cont_vars', 'dec_vars', 'orig_val', 'disc_opts'])
 
-class NNExplanation:
+class CounterfactualGenerator:
     def __init__(self, model, encoder):
         self.nn_model = model
         self.encoder = encoder
 
-    def build_structure(self, n_explanations=None, epsilon=None, verbose=False):
+    def __build_structure(self, n_counterfactuals=None, epsilon=None, verbose=False):
         """build the Core programme of the model that induces
         counterfactuals for the datapoint base_factual"""
         if not verbose:
@@ -121,17 +121,14 @@ class NNExplanation:
                     name=f"layer{i}")
                 x_prev = np.array(x_next.values())
 
-        self.fact_sign = np.sign(self.nn_model.predict(self.expanded_factual))
-        self.desired_sign = -1 * self.fact_sign
-
         # this expects a single output unit for binary clasification
         self.counterfact_model.addConstr(x_prev[0] * self.desired_sign >= 0, name="model_result")
         self.counterfact_model.setObjective(
             self.counterfact_model.getObjective(), gb.GRB.MINIMIZE)
 
         # generating in bulk, set apropriate parameters
-        if n_explanations is not None:
-            self.counterfact_model.setParam("PoolSolutions", n_explanations)
+        if n_counterfactuals is not None:
+            self.counterfact_model.setParam("PoolSolutions", n_counterfactuals)
         elif epsilon is not None:
             self.counterfact_model.setParam("PoolGap", epsilon)
         else:
@@ -144,17 +141,19 @@ class NNExplanation:
             self.counterfact_model.display()
 
 
-    def set_factual(self, factual):
+    def __set_factual(self, factual):
         self.expanded_factual = self.encoder.encode_datapoint(factual)
+        self.fact_sign = np.sign(self.nn_model.predict(self.expanded_factual))
+        self.desired_sign = -1 * self.fact_sign
+
         self.base_factual = factual.copy().astype(np.float)
         for i in range(factual.size):
             if factual[i] > 0:
                 self.base_factual[i] /= self.encoder.context[i].scale # normalize continuous values
 
-
     # ------------------- Helper functions -------------------
 
-    def recover_val(self, variable):
+    def __recover_val(self, variable):
         dec_values = np.asarray(list(map(lambda x: x.Xn, variable.dec_vars)))
         selected_i = np.argmax(dec_values)
 
@@ -171,87 +170,36 @@ class NNExplanation:
 
         return variable.disc_opts[selected_i - 1]
 
-    def recover_all_val(self):
-        return np.asarray(list(map(self.recover_val, self.vars)))
+    def __recover_all_vals(self):
+        return np.asarray(list(map(self.__recover_val, self.vars)))
 
+    # --------------- Counterfactual Generetator functions ----------------------
 
-    # ----------------- Textual output helpers -----------------
-
-    # this needs to be set according to your dataset, see example
-    string_vals = None
-
-    def format_value(self, value, i):
-        val_names = self.string_vals.get(self.encoder.context[i].name, self.string_vals)
-        str_val = val_names.get(value, '')
-        if str_val != "":
-            return str_val + f" ({np.round(value).astype(int)})"
-        return f"{np.round(value * self.encoder.context[i].scale, 2)}"
-
-    def explain(self, values, labels=("'good'", "'bad'")):
-        orig_res = labels[int(not self.fact_sign > 0)]
-        counterfact = labels[int(not self.desired_sign > 0)]
-
-        mask = np.abs(values - self.base_factual) > 10e-3
-        explain = (f"You got score {orig_res}.\n" +
-                   f"One way you could have got score {counterfact} instead is if:\n")
-        changes_str = ""
-        for i in range(mask.size):
-            if mask[i]:
-                changes_str += (f"  {self.encoder.context[i].name} had taken value "
-                      + f"{self.format_value(values[i], i)} rather than "
-                      + f"{self.format_value(self.base_factual[i], i)} and \n")
-        explain += changes_str[:-6] # drop " and \n" from the end
-        return explain
-
-    def explain_follow(self, values, labels=("'good'", "'bad'")):
-        counterfact = labels[int(not self.desired_sign > 0)]
-
-        mask = np.abs(values - self.base_factual) > 0.001
-        explain = f"Another way you could have got score {counterfact} instead is if:\n"
-        changes_str = ""
-        for i in range(mask.size):
-            if mask[i]:
-                changes_str += (f"  {self.encoder.context[i].name} had taken value "
-                      + f"{self.format_value(values[i], i)} rather than "
-                      + f"{self.format_value(self.base_factual[i], i)} and \n")
-        explain += changes_str[:-6] # drop " and \n" from the end
-        return explain
-
-    # --------------- Explanations Generetator functions ----------------------
-
-    def explain_set(self, entries, epsilon=None, n_explanations=None, labels=("'good'", "'bad'"), verbose=False):
-        assert epsilon is not None or n_explanations is not None
-
+    def explain_set(self, entries, epsilon=None, n_counterfactuals=None, verbose=False):
+        assert epsilon is not None or n_counterfactuals is not None
         out = []
-        for i in range(entries.shape[0]):
-            if n_explanations is None:
-                out.append(self.generate_close_explanations(entries[i], epsilon, labels=labels, verbose=verbose))
+        for entry in entries:
+            if n_counterfactuals is None:
+                out.append(self.generate_close_counterfactuals(entry, epsilon, verbose=verbose))
             else:
-                out.append(self.generate_n_explanations(entries[i], n_explanations, labels=labels, verbose=verbose))
+                out.append(self.generate_n_counterfactuals(entry, n_counterfactuals, verbose=verbose))
         return out
 
-    def get_explanations(self, labels):
-        self.counterfact_model.setParam("SolutionNumber", 0)
-        values = self.recover_all_val()
-        explanations = [self.explain(values, labels)]
-
-        for i in range(1, self.counterfact_model.SolCount):
+    def __get_counterfactuals(self):
+        values = []
+        for i in range(self.counterfact_model.SolCount):
             self.counterfact_model.setParam("SolutionNumber", i)
-            values = self.recover_all_val()
-            explanations.append(self.explain_follow(values, labels))
+            values.append(self.__recover_all_vals())
+        return values
 
-        return explanations
+    def generate_n_counterfactuals(self, datapoint, n_counterfactuals, verbose=False):
+        assert n_counterfactuals > 0
+        self.__set_factual(datapoint)
+        self.__build_structure(n_counterfactuals=n_counterfactuals, verbose=verbose)
+        return self.__get_counterfactuals()
 
-    def generate_n_explanations(self, datapoint, n_explanations, labels=("'good'", "'bad'"), verbose=False):
-        assert n_explanations > 0
-
-        self.set_factual(datapoint)
-        self.build_structure(n_explanations=n_explanations, verbose=verbose)
-        return self.get_explanations(labels)
-
-    def generate_close_explanations(self, datapoint, epsilon, labels=("'good'", "'bad'"), verbose=False):
+    def generate_close_counterfactuals(self, datapoint, epsilon, verbose=False):
         assert epsilon > 0
-
-        self.set_factual(datapoint)
-        self.build_structure(epsilon=epsilon, verbose=verbose)
-        return self.get_explanations(labels)
+        self.__set_factual(datapoint)
+        self.__build_structure(epsilon=epsilon, verbose=verbose)
+        return self.__get_counterfactuals()
