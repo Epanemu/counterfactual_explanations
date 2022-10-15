@@ -67,11 +67,11 @@ for cf in textualizer.formulate_list(counterfactuals, cf_generator, labels=("GOO
     print(cf)
 
 get_by_distance = False
-relative_distance_q = 100 # number of times the optimal value (~distance the closest counterfactual to the factual)
+relative_distance_q = 1 # number of times the optimal value (~distance the closest counterfactual to the factual)
 if get_by_distance:
     print()
     print(f"Counterfactuals close to optimum:")
-    counterfactuals = cf_generator.generate_close_counterfactuals(in_data, relative_distance_q, verbose=False)
+    counterfactuals = cf_generator.generate_close_counterfactuals(in_data, relative_distance_q, n_limit=100, verbose=False)
     for cf in textualizer.formulate_list(counterfactuals, cf_generator, labels=("GOOD","BAD")):
         print(cf)
 
