@@ -14,9 +14,10 @@ from collections import namedtuple
 Var = namedtuple('Var', ['cont_vars', 'dec_vars', 'orig_val', 'disc_opts'])
 
 class CounterfactualGenerator:
-    def __init__(self, model, encoder):
+    def __init__(self, model, encoder, uniq_bound_M=10e10):
         self.nn_model = model
         self.encoder = encoder
+        self.uniq_bound_M = uniq_bound_M
 
     def __build_structure(self, n_counterfactuals=None, epsilon=None, verbose=False, cf_distance=0):
         """
@@ -115,7 +116,7 @@ class CounterfactualGenerator:
                 self.counterfact_model.addConstrs(((z_indicator[j] == 1) >> (pos_next[j] <= 0) for j in range(n_units)), name=f"zpos{i}")
                 self.counterfact_model.addConstrs(((z_indicator[j] == 0) >> (neg_next[j] <= 0) for j in range(n_units)), name=f"zneg{i}")
                 # reqiure basic uniqueness
-                self.counterfact_model.addConstrs((z_indicator[j] <= (pos_next[j] + neg_next[j])*10e12 for j in range(n_units)), name=f"zcheck{i}")
+                self.counterfact_model.addConstrs((z_indicator[j] <= neg_next[j]*self.uniq_bound_M for j in range(n_units)), name=f"zcheck{i}")
 
                 x_prev = np.array(pos_next.values()) # ReLU makes only the positive values to progress further
             else:
