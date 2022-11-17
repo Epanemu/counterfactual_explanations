@@ -46,7 +46,7 @@ class MixedEncoder:
                 # start with discrete from position 1
                 j = 1
             else:
-                # 0 scale is the indicator of solely discrete variable
+                # 0 scale is the indicator of solely categorical variable
                 scale = 0
                 j = 0
 
