@@ -19,12 +19,12 @@ class CounterfactualGenerator:
         self.encoder = encoder
         self.uniq_bound_M = uniq_bound_M
 
-    def __build_structure(self, n_counterfactuals=None, epsilon=None, verbose=False, cf_distance=0):
+    def __build_structure(self, n_counterfactuals=None, epsilon=None, verbose=False, cf_margin=0):
         """
         build the Core programme of the model that induces
         counterfactuals for the datapoint base_factual
         """
-        assert cf_distance >= 0
+        assert cf_margin >= 0
         assert n_counterfactuals is not None or epsilon is not None, "Must set epsilon as relative distance to optimum or number of closest solutions"
 
         if not verbose:
@@ -49,7 +49,8 @@ class CounterfactualGenerator:
 
             if curr_context.scale == 0: # variable is fully discrete
                 disc_index = (curr_context.disc_opts == curr_value).argmax()
-                sign[disc_index] = -1
+                # sign[disc_index] = -1 # Chriss Russel original
+                sign[disc_index] = 0 # this seems smarter to me since it wont be a double "cost" for switching from the original. At least for fully discrete variables
                 dec_as_input_from = 0 # all decision variables serve as input to the neural network
             else: # there are some continuous values
                 if curr_value < 0: # current value is < 0 if it is discrete
@@ -128,8 +129,8 @@ class CounterfactualGenerator:
                 x_prev = np.array(x_next.values())
 
         # this expects a single output unit for binary clasification
-        # cf_distance can ensure strong enough results, but leads to infeasibility if too high
-        self.counterfact_model.addConstr(x_prev[0] * self.desired_sign >= cf_distance, name="model_result")
+        # cf_margin can ensure strong enough results, but leads to infeasibility if too high
+        self.counterfact_model.addConstr(x_prev[0] * self.desired_sign >= cf_margin, name="model_result")
         self.counterfact_model.setObjective(
             self.counterfact_model.getObjective(), gb.GRB.MINIMIZE)
 
@@ -183,14 +184,14 @@ class CounterfactualGenerator:
 
     # --------------- Counterfactual Generetator functions ----------------------
 
-    def explain_set(self, entries, epsilon=None, n_counterfactuals=None, verbose=False, cf_distance=0):
+    def explain_set(self, entries, epsilon=None, n_counterfactuals=None, verbose=False, cf_margin=0):
         assert epsilon is not None or n_counterfactuals is not None
         out = []
         for entry in entries:
             if epsilon is not None:
-                out.append(self.generate_close_counterfactuals(entry, epsilon, verbose=verbose, cf_distance=cf_distance, n_limit=n_counterfactuals))
+                out.append(self.generate_close_counterfactuals(entry, epsilon, verbose=verbose, cf_margin=cf_margin, n_limit=n_counterfactuals))
             else:
-                out.append(self.generate_n_counterfactuals(entry, n_counterfactuals, verbose=verbose, cf_distance=cf_distance))
+                out.append(self.generate_n_counterfactuals(entry, n_counterfactuals, verbose=verbose, cf_margin=cf_margin))
         return out
 
     def __get_counterfactuals(self):
@@ -200,18 +201,18 @@ class CounterfactualGenerator:
             values.append(self.__recover_all_vals())
         return values
 
-    def generate_n_counterfactuals(self, datapoint, n_counterfactuals, verbose=False, cf_distance=0):
+    def generate_n_counterfactuals(self, datapoint, n_counterfactuals, verbose=False, cf_margin=0):
         assert n_counterfactuals > 0
         self.__set_factual(datapoint)
-        self.__build_structure(n_counterfactuals=n_counterfactuals, verbose=verbose, cf_distance=cf_distance)
+        self.__build_structure(n_counterfactuals=n_counterfactuals, verbose=verbose, cf_margin=cf_margin)
         return self.__get_counterfactuals()
 
-    def generate_close_counterfactuals(self, datapoint, epsilon, verbose=False, cf_distance=0, n_limit=None):
+    def generate_close_counterfactuals(self, datapoint, epsilon, verbose=False, cf_margin=0, n_limit=None):
         """
         Can set maximum number of generated counterfactuals with n_limit
         Note that by default, gurobi generates only up to 10 solutions.
         """
         assert epsilon > 0
         self.__set_factual(datapoint)
-        self.__build_structure(epsilon=epsilon, n_counterfactuals=n_limit, verbose=verbose, cf_distance=cf_distance)
+        self.__build_structure(epsilon=epsilon, n_counterfactuals=n_limit, verbose=verbose, cf_margin=cf_margin)
         return self.__get_counterfactuals()
