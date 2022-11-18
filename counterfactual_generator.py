@@ -9,6 +9,7 @@ based on the work of Criss Russel
 """
 import numpy as np
 import gurobipy as gb
+from tqdm import tqdm
 
 from collections import namedtuple
 Var = namedtuple('Var', ['cont_vars', 'dec_vars', 'orig_val', 'disc_opts'])
@@ -185,9 +186,12 @@ class CounterfactualGenerator:
     # --------------- Counterfactual Generetator functions ----------------------
 
     def explain_set(self, entries, epsilon=None, n_counterfactuals=None, verbose=False, cf_margin=0):
+        """
+        Does not work well if you want to textualize the counterfactuals.
+        """
         assert epsilon is not None or n_counterfactuals is not None
         out = []
-        for entry in entries:
+        for entry in tqdm(entries):
             if epsilon is not None:
                 out.append(self.generate_close_counterfactuals(entry, epsilon, verbose=verbose, cf_margin=cf_margin, n_limit=n_counterfactuals))
             else:

@@ -7,6 +7,7 @@ from sklearn.model_selection import train_test_split
 
 import numpy as np
 import pandas as pd
+from tqdm import tqdm
 
 frame = pd.read_csv('adult_frame.csv')
 model_path = "model.pt"
@@ -68,7 +69,7 @@ counterfactuals = cf_generator.generate_n_counterfactuals(in_data, n, cf_margin=
 for cf in textualizer.formulate_list(counterfactuals, cf_generator, labels=("GOOD","BAD")):
     print(cf)
 
-get_by_distance = True
+get_by_distance = False
 relative_distance_q = 1 # number of times the optimal value (~distance the closest counterfactual to the factual)
 if get_by_distance:
     print()
@@ -77,12 +78,15 @@ if get_by_distance:
     for cf in textualizer.formulate_list(counterfactuals, cf_generator, labels=("GOOD","BAD")):
         print(cf)
 
-explain_all = False
+explain_all = True
 if explain_all:
-    counterfactuals_list = cf_generator.explain_set(input_data.values, n_counterfactuals=5)
+    # THIS IMPLEMENTATION DOES NOT WORK RIGHT WITH TEXTUALIZER, it needs generator with original parameters
+    # counterfactuals_list = cf_generator.explain_set(input_data.values, n_counterfactuals=5)
     # counterfactuals_list = cf_generator.explain_set(input_data.values, epsilon=1)
     textual_data = []
-    for counterfactuals in counterfactuals_list:
+    for entry in tqdm(input_data.values):
+        counterfactuals = cf_generator.generate_close_counterfactuals(entry, 1, n_limit=5)
+        # counterfactuals = cf_generator.generate_n_counterfactuals(entry, 5))
         textual_data.append(textualizer.formulate_list(counterfactuals, cf_generator, labels=("GOOD","BAD")))
     exp2 = pd.DataFrame(textual_data)
     exp2.to_csv('test.csv')
