@@ -45,7 +45,7 @@ def compute_wd(from_data, to_data, is_categorical, bin_edges=None):
         to_counts = np.array(to_counts, dtype=np.float64)
 
         n = tot_unique.shape[0]
-        M = np.ones((n,n)) # all distances are equal
+        M = ( np.eye(n) == 0).astype(np.float64) # all distances are equal except to oneself
     else:
         if bin_edges is None:
             from_counts, bin_edges = np.histogram(from_data, bins="fd") # compute the histogram using Freedman Diaconis Estimator for bin width
@@ -61,9 +61,11 @@ def compute_wd(from_data, to_data, is_categorical, bin_edges=None):
         M = ot.dist(bin_centers.reshape((-1, 1)), bin_centers.reshape((-1, 1)))
         if M.max() != 0:
             M /= M.max()
-    # print(M)
-    # print(from_counts, to_counts)
-    # print(from_counts / from_counts.sum(), to_counts / to_counts.sum())
+        # print()
+        # print(M)
+        # print(from_counts, to_counts)
+        # print(bin_edges)
+        # print(from_data, to_data)
     return ot.emd2(from_counts / from_counts.sum(), to_counts / to_counts.sum(), M) # emd2 returns the Earth Mover Distance loss
 
 
