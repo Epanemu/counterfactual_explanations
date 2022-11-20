@@ -45,6 +45,12 @@ class MixedEncoder:
                 discrete_options = discrete_options[discrete_options != 0]
                 # start with discrete from position 1
                 j = 1
+            elif discrete_options.shape[0] == 1: # all values are 0, we assume it is continuous, happens in MNIST
+                scale = 1
+                table_values[0] = col_data
+                table_values[0, np.isnan(table_values[0])] = 1 # replace nan values with 1
+                MAD[0] = 1e-4 # for numerical stability
+                discrete_options = np.array([])
             else:
                 # 0 scale is the indicator of solely categorical variable
                 scale = 0

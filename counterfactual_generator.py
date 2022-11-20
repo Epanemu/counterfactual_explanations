@@ -134,22 +134,24 @@ class CounterfactualGenerator:
             self.counterfact_model.addConstr(x_prev[0] * self.desired_sign >= cf_margin, name="model_result")
         else:
             # set goal according to the mutliclass counterfactual
-            other_classes = filter(lambda i: i != self.goal_class, range(x_prev.shape[0]))
             if self.goal_class == None: # any other class
+                not_current_class = filter(lambda i: i != self.curr_class, range(x_prev.shape[0]))
                 # for at least one j
                 g_indicator = self.counterfact_model.addVars(x_prev.shape[0]-1, vtype=gb.GRB.BINARY, name=f"goal")
-                self.counterfact_model.addConstr(
-                    ((g_indicator[i] == 1) >> (x_prev[j] - x_prev[self.curr_class] >= cf_margin) for i, j in enumerate(other_classes)),
+                self.counterfact_model.addConstrs(
+                    ((g_indicator[i] == 1) >> (x_prev[j] - x_prev[self.curr_class] >= cf_margin) for i, j in enumerate(not_current_class)),
                     name="model_result_higher")
-                self.counterfact_model.addConstr(
-                    ((g_indicator[i] == 0) >> (x_prev[j] - x_prev[self.curr_class] <= cf_margin) for i, j in enumerate(other_classes)),
+                self.counterfact_model.addConstrs(
+                    ((g_indicator[i] == 0) >> (x_prev[j] - x_prev[self.curr_class] <= cf_margin) for i, j in enumerate(not_current_class)),
                     name="model_result_lower")
                 self.counterfact_model.addConstr(g_indicator.sum() >= 1) # at least one is higher
             else: # specific goal class
+                not_goal_class = filter(lambda i: i != self.goal_class, range(x_prev.shape[0]))
                 self.counterfact_model.addConstrs(
-                    (x_prev[self.goal_class] - x_prev[j] >= cf_margin for j in other_classes),
+                    (x_prev[self.goal_class] - x_prev[j] >= cf_margin for j in not_goal_class),
                     name="model_result")
             self.goal_layer = x_prev
+
         self.counterfact_model.setObjective(
             self.counterfact_model.getObjective(), gb.GRB.MINIMIZE)
 
