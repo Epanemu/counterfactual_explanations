@@ -229,7 +229,15 @@ class CounterfactualGenerator:
         values = []
         for i in range(self.counterfact_model.SolCount):
             self.counterfact_model.setParam("SolutionNumber", i)
-            values.append(self.__recover_all_vals())
+            if self.mutli_class:
+                orig_class = self.curr_class
+                cf_class = np.argmax([x.Xn for x in self.goal_layer])
+                if self.goal_class is not None:
+                    assert cf_class == self.goal_class
+            else:
+                orig_class = int(self.fact_sign >= 0)
+                cf_class = int(self.desired_sign >= 0)
+            values.append((self.__recover_all_vals(), (orig_class, cf_class)))
         return values
 
     def generate_n_counterfactuals(self, datapoint, n_counterfactuals, verbose=False, cf_margin=0, goal_class=None):

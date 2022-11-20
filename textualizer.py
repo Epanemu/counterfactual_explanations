@@ -14,50 +14,41 @@ class Textualizer:
             return str_val + f" ({np.round(value).astype(int)})"
         return f"{np.round(value * self.encoder.context[i].scale, 2)}"
 
-    def formulate(self, counterfact, generator, labels=("'good'", "'bad'")):
-        if generator.mutli_class:
-            orig_res = labels[generator.curr_class]
-            label_i = np.argmax([x.Xn for x in generator.goal_layer])
-            counter_res = labels[label_i]
-            if generator.goal_class is not None:
-                assert label_i == generator.goal_class
-        else:
-            orig_res = labels[int(generator.fact_sign < 0)]
-            counter_res = labels[int(generator.desired_sign < 0)]
+    def formulate(self, counterfact, generator, labels=("negative", "positive")):
+        counterfact_value, (orig_class, counterfact_class) = counterfact
+        orig_res = labels[orig_class]
+        counter_res = labels[counterfact_class]
 
-        mask = np.abs(counterfact - generator.base_factual) > self.DIFF_TOLERANCE
+        mask = np.abs(counterfact_value - generator.base_factual) > self.DIFF_TOLERANCE
         explanation = (f"You got score {orig_res}.\n" +
                     f"One way you could have got score {counter_res} instead is if:\n")
         changes_str = ""
         for i in range(mask.size):
             if mask[i]:
                 changes_str += (f"  {self.encoder.context[i].name} had taken value "
-                        + f"{self.__format_value(counterfact[i], i)} rather than "
+                        + f"{self.__format_value(counterfact_value[i], i)} rather than "
                         + f"{self.__format_value(generator.base_factual[i], i)} and \n")
         explanation += changes_str[:-6] # drop " and \n" from the end
         return explanation
 
     def __formulate_follow(self, counterfact, generator, labels):
-        if generator.mutli_class:
-            label_i = np.argmax([x.Xn for x in generator.goal_layer])
-            counter_res = labels[label_i]
-            if generator.goal_class is not None:
-                assert label_i == generator.goal_class
-        else:
-            counter_res = labels[int(generator.desired_sign < 0)]
+        counterfact_value, (_, counterfact_class) = counterfact
+        counter_res = labels[counterfact_class]
 
-        mask = np.abs(counterfact - generator.base_factual) > self.DIFF_TOLERANCE
+        mask = np.abs(counterfact_value - generator.base_factual) > self.DIFF_TOLERANCE
         explanation = f"Another way you could have got score {counter_res} instead is if:\n"
         changes_str = ""
         for i in range(mask.size):
             if mask[i]:
                 changes_str += (f"  {self.encoder.context[i].name} had taken value "
-                        + f"{self.__format_value(counterfact[i], i)} rather than "
+                        + f"{self.__format_value(counterfact_value[i], i)} rather than "
                         + f"{self.__format_value(generator.base_factual[i], i)} and \n")
         explanation += changes_str[:-6] # drop " and \n" from the end
         return explanation
 
-    def formulate_list(self, counterfacts, generator, labels=("'good'", "'bad'")):
+    def formulate_list(self, counterfacts, generator, labels=("negative", "positive")):
+        if len(counterfacts) == 0:
+            return []
         explanations = [self.formulate(counterfacts[0], generator, labels=labels)]
         for counterfact in counterfacts[1:]:
             explanations.append(self.__formulate_follow(counterfact, generator, labels))
