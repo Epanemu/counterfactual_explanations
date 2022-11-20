@@ -13,7 +13,7 @@ frame = pd.read_csv('adult_frame.csv')
 model_path = "model.pt"
 
 # create target binary i.e. {0,1} variable to predict
-target = np.asarray(frame['income'] == '>=50k')
+target = np.asarray(frame['income'] == '>=50k', dtype=np.float32).reshape(-1,1)
 
 # extract input variables used to make prediction
 input_data = frame[frame.columns[0:8]]
@@ -50,9 +50,10 @@ textualizer = Textualizer(string_vals, encoder)
 
 
 # index of datapoint to be explained
-i = 309
+i = 0
 in_data = input_data.iloc[i].values
-# print("Prediction:", model.predict(encoder.encode_datapoint(in_data)))
+print("Prediction:", int(model.predict(encoder.encode_datapoint(in_data)) >= 0))
+print("True target:", int(target[i][0]))
 
 # Direct approach to get n closest
 n = 3

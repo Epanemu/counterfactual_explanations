@@ -9,7 +9,7 @@ from tqdm import tqdm
 class SimpleDataset(Dataset):
   def __init__(self, X, y):
     self.X = torch.tensor(X,dtype=torch.float32)
-    self.y = torch.tensor(y,dtype=torch.float32)
+    self.y = torch.tensor(y)
 
   def __len__(self):
     return len(self.y)
@@ -54,7 +54,7 @@ class NNModel:
             for i, (X, y) in enumerate(dataloader):
                 y_pred = self.model(X)
 
-                loss = self.loss_f(y_pred, y.reshape(-1,1))
+                loss = self.loss_f(y_pred, y)
                 self.optimizer.zero_grad()
                 loss.backward()
                 self.optimizer.step()
@@ -70,7 +70,7 @@ class NNModel:
         with torch.no_grad():
             for i, (X, y) in enumerate(dataloader):
                 y_pred = self.model(X)
-                losses.append(self.loss_f(y_pred, y.reshape(-1,1)).item())
+                losses.append(self.loss_f(y_pred, y).item())
                 if y_pred.shape[1] > 1: # multi class
                     class_pred = torch.argmax(y_pred, dim=1)
                     correct.append((class_pred == y).item())
