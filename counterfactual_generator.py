@@ -129,9 +129,27 @@ class CounterfactualGenerator:
                     name=f"layer{i}")
                 x_prev = np.array(x_next.values())
 
-        # this expects a single output unit for binary clasification
         # cf_margin can ensure strong enough results, but leads to infeasibility if too high
-        self.counterfact_model.addConstr(x_prev[0] * self.desired_sign >= cf_margin, name="model_result")
+        if x_prev.shape[0] == 1: # binary classification
+            self.counterfact_model.addConstr(x_prev[0] * self.desired_sign >= cf_margin, name="model_result")
+        else:
+            # set goal according to the mutliclass counterfactual
+            other_classes = filter(lambda i: i != self.goal_class, range(x_prev.shape[0]))
+            if self.goal_class == None: # any other class
+                # for at least one j
+                g_indicator = self.counterfact_model.addVars(x_prev.shape[0]-1, vtype=gb.GRB.BINARY, name=f"goal")
+                self.counterfact_model.addConstr(
+                    ((g_indicator[i] == 1) >> (x_prev[j] - x_prev[self.curr_class] >= cf_margin) for i, j in enumerate(other_classes)),
+                    name="model_result_higher")
+                self.counterfact_model.addConstr(
+                    ((g_indicator[i] == 0) >> (x_prev[j] - x_prev[self.curr_class] <= cf_margin) for i, j in enumerate(other_classes)),
+                    name="model_result_lower")
+                self.counterfact_model.addConstr(g_indicator.sum() >= 1) # at least one is higher
+            else: # specific goal class
+                self.counterfact_model.addConstrs(
+                    (x_prev[self.goal_class] - x_prev[j] >= cf_margin for j in other_classes),
+                    name="model_result")
+            self.goal_layer = x_prev
         self.counterfact_model.setObjective(
             self.counterfact_model.getObjective(), gb.GRB.MINIMIZE)
 
@@ -140,7 +158,7 @@ class CounterfactualGenerator:
             self.counterfact_model.setParam("PoolSolutions", n_counterfactuals) # if epsilon is set, this becomes an upper bound
         if epsilon is not None:
             self.counterfact_model.setParam("PoolGap", epsilon)
-        self.counterfact_model.setParam("PoolSearchMode", 2)
+        self.counterfact_model.setParam("PoolSearchMode", 2) # search for closest local optima
 
         # perform optimization
         self.counterfact_model.optimize()
@@ -151,10 +169,19 @@ class CounterfactualGenerator:
             print("INFEASIBLE MODEL")
 
 
-    def __set_factual(self, factual):
+    def __set_factual(self, factual, goal_class=None):
         self.expanded_factual = self.encoder.encode_datapoint(factual)
-        self.fact_sign = np.sign(self.nn_model.predict(self.expanded_factual))
-        self.desired_sign = -1 * self.fact_sign
+        prediction = self.nn_model.predict(self.expanded_factual)
+        if prediction.shape[0] > 1:
+            # model gives mutli class decision
+            self.curr_class = np.argmax(prediction, axis=0)
+            self.goal_class = goal_class # None here means that any other class but the current is sought
+            self.mutli_class = True
+        else:
+            # result is binary decision
+            self.fact_sign = np.sign(prediction)
+            self.desired_sign = -1 * self.fact_sign
+            self.mutli_class = False
 
         self.base_factual = factual.copy().astype(np.float)
         for i in range(factual.size):
@@ -205,18 +232,18 @@ class CounterfactualGenerator:
             values.append(self.__recover_all_vals())
         return values
 
-    def generate_n_counterfactuals(self, datapoint, n_counterfactuals, verbose=False, cf_margin=0):
+    def generate_n_counterfactuals(self, datapoint, n_counterfactuals, verbose=False, cf_margin=0, goal_class=None):
         assert n_counterfactuals > 0
-        self.__set_factual(datapoint)
+        self.__set_factual(datapoint, goal_class=goal_class)
         self.__build_structure(n_counterfactuals=n_counterfactuals, verbose=verbose, cf_margin=cf_margin)
         return self.__get_counterfactuals()
 
-    def generate_close_counterfactuals(self, datapoint, epsilon, verbose=False, cf_margin=0, n_limit=None):
+    def generate_close_counterfactuals(self, datapoint, epsilon, verbose=False, cf_margin=0, n_limit=None, goal_class=None):
         """
         Can set maximum number of generated counterfactuals with n_limit
         Note that by default, gurobi generates only up to 10 solutions.
         """
         assert epsilon > 0
-        self.__set_factual(datapoint)
+        self.__set_factual(datapoint, goal_class=goal_class)
         self.__build_structure(epsilon=epsilon, n_counterfactuals=n_limit, verbose=verbose, cf_margin=cf_margin)
         return self.__get_counterfactuals()

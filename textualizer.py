@@ -15,8 +15,15 @@ class Textualizer:
         return f"{np.round(value * self.encoder.context[i].scale, 2)}"
 
     def formulate(self, counterfact, generator, labels=("'good'", "'bad'")):
-        orig_res = labels[int(generator.fact_sign < 0)]
-        counter_res = labels[int(generator.desired_sign < 0)]
+        if generator.mutli_class:
+            orig_res = labels[generator.curr_class]
+            label_i = np.argmax([x.Xn for x in generator.goal_layer])
+            counter_res = labels[label_i]
+            if generator.goal_class is not None:
+                assert label_i == generator.goal_class
+        else:
+            orig_res = labels[int(generator.fact_sign < 0)]
+            counter_res = labels[int(generator.desired_sign < 0)]
 
         mask = np.abs(counterfact - generator.base_factual) > self.DIFF_TOLERANCE
         explanation = (f"You got score {orig_res}.\n" +
@@ -31,7 +38,13 @@ class Textualizer:
         return explanation
 
     def __formulate_follow(self, counterfact, generator, labels):
-        counter_res = labels[int(generator.desired_sign < 0)]
+        if generator.mutli_class:
+            label_i = np.argmax([x.Xn for x in generator.goal_layer])
+            counter_res = labels[label_i]
+            if generator.goal_class is not None:
+                assert label_i == generator.goal_class
+        else:
+            counter_res = labels[int(generator.desired_sign < 0)]
 
         mask = np.abs(counterfact - generator.base_factual) > self.DIFF_TOLERANCE
         explanation = f"Another way you could have got score {counter_res} instead is if:\n"

@@ -30,7 +30,11 @@ class NNModel:
         self.layers = layers
 
         self.model = nn.Sequential(*layers)
-        self.loss_f = nn.BCEWithLogitsLoss()
+        if output_size == 1: # it is a binary classification
+            self.loss_f = nn.BCEWithLogitsLoss()
+        else:
+            self.loss_f = nn.CrossEntropyLoss()
+
         self.optimizer = torch.optim.AdamW(self.model.parameters())
 
     def predict(self,x):
@@ -67,7 +71,11 @@ class NNModel:
             for i, (X, y) in enumerate(dataloader):
                 y_pred = self.model(X)
                 losses.append(self.loss_f(y_pred, y.reshape(-1,1)).item())
-                correct.append(((y_pred > 0) == y).item())
+                if y_pred.shape[1] > 1: # multi class
+                    class_pred = torch.argmax(y_pred, dim=1)
+                    correct.append((class_pred == y).item())
+                else:
+                    correct.append(((y_pred > 0) == y).item())
         print(f"Accuracy: {sum(correct) / y_test.shape[0] * 100:.2f}%")
         print("Average loss:", sum(losses) / y_test.shape[0])
 
