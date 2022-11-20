@@ -169,6 +169,8 @@ class CounterfactualGenerator:
 
         if self.counterfact_model.status == gb.GRB.INFEASIBLE:
             print("INFEASIBLE MODEL")
+            self.counterfact_model.computeIIS()
+            self.counterfact_model.write("model.ilp")
 
 
     def __set_factual(self, factual, goal_class=None):
