@@ -123,7 +123,7 @@ class CounterfactualGenerator:
 
                 x_prev = np.array(pos_next.values()) # ReLU makes only the positive values to progress further
             else:
-                x_next = self.counterfact_model.addVars(n_units, vtype=gb.GRB.CONTINUOUS, name=f"x{i}") # unbounded, can be negative
+                x_next = self.counterfact_model.addVars(n_units, lb=-np.inf, vtype=gb.GRB.CONTINUOUS, name=f"x{i}") # unbounded, can be negative
                 self.counterfact_model.addConstrs((
                     weights[i][j].dot(x_prev) + biases[i][j] == x_next[j] for j in range(n_units)),
                     name=f"layer{i}")
