@@ -67,24 +67,24 @@ for sample_size in [10, 50, 100, 500, 1000, 5000]:
             # each change in discrete is different, better representation needed, from -1 to -2 is not the same as from -3 to -4
             # except, the base is the same for all on which compute the entropy later, so I do not care at this point
             cf_diffs.append(diffs)
-        cf_set = np.array(cf_set, dtype=object) # they are different length, must be treated as objects
-        cf_diffs = np.array(cf_diffs, dtype=object) # they are different length, must be treated as objects
+        cf_set = np.array(cf_set, dtype=object)  # they are different length, must be treated as objects
+        cf_diffs = np.array(cf_diffs, dtype=object)  # they are different length, must be treated as objects
 
         for i, context in enumerate(encoder.context):
             # print(f"{context.name}: ")
-            bin_edges = np.linspace(0, 1, 21) # stable bin sizes work better, no data is disregarded (all data used here is normalized to [0,1] range)
+            bin_edges = np.linspace(0, 1, 21)  # stable bin sizes work better, no data is disregarded (all data used here is normalized to [0,1] range)
             # bin_edges = None
             for output_class in classes:
                 # print(f"For class {class_name[output_class]}")
                 mask = predictions == output_class
 
-                data_entropy, bin_edges = compute_entropy(input_set[mask, i], is_categorical=(context.scale==0), bin_edges=bin_edges)
+                data_entropy, bin_edges = compute_entropy(input_set[mask, i], is_categorical=(context.scale == 0), bin_edges=bin_edges)
                 # other
-                cf_entropy, _ = compute_entropy(np.concatenate(cf_set[~mask])[:, i], is_categorical=(context.scale==0), bin_edges=bin_edges)
+                cf_entropy, _ = compute_entropy(np.concatenate(cf_set[~mask])[:, i], is_categorical=(context.scale == 0), bin_edges=bin_edges)
                 # print(f"Difference of entropy of original and counterfactuals: {data_entropy - cf_entropy:.2f}")
 
                 # this often collapses to entropy 0 for small samples, not enough variance in the data.
-                cf_diff_entropy, _ = compute_entropy(np.concatenate(cf_diffs[mask])[:, i], is_categorical=(context.scale==0))
+                cf_diff_entropy, _ = compute_entropy(np.concatenate(cf_diffs[mask])[:, i], is_categorical=(context.scale == 0))
                 # if cf_diff_entropy == 0:
                 #     print(f"{context.name}: ")
                 #     print(np.concatenate(cf_diffs[mask])[:, i])
@@ -92,7 +92,7 @@ for sample_size in [10, 50, 100, 500, 1000, 5000]:
                 #     print(input_set[mask, i])
 
                 # wasserstein distance of distribution of countefactualy generated points to the distribution of the original points
-                wasserstein = compute_wd(np.concatenate(cf_set[~mask])[:, i], input_set[mask, i], is_categorical=(context.scale==0), bin_edges=bin_edges)
+                wasserstein = compute_wd(np.concatenate(cf_set[~mask])[:, i], input_set[mask, i], is_categorical=(context.scale == 0), bin_edges=bin_edges)
                 data.append({
                     "sample_size": sample_size,
                     "epsilon": epsilon,

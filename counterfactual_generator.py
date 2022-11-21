@@ -14,6 +14,7 @@ from tqdm import tqdm
 from collections import namedtuple
 Var = namedtuple('Var', ['cont_vars', 'dec_vars', 'orig_val', 'disc_opts'])
 
+
 class CounterfactualGenerator:
     def __init__(self, model, encoder, uniq_bound_M=10e10):
         self.nn_model = model
@@ -46,40 +47,40 @@ class CounterfactualGenerator:
         for i in range(self.encoder.n_vars):
             curr_value = self.base_factual[i]
             curr_context = self.encoder.context[i]
-            dec_count = curr_context.median_vals.shape[0] # number of binary decision variables
+            dec_count = curr_context.median_vals.shape[0]  # number of binary decision variables
 
             # signs for decision variables [0 for continuous ; 1 for all decision variables, except if one is selected, then -1]
             # decision for continuous does not influence the objective, and since we minimize, the selected is lowering the objective
             sign = np.ones(dec_count)
 
-            if curr_context.scale == 0: # variable is fully discrete
+            if curr_context.scale == 0:  # variable is fully discrete
                 disc_index = (curr_context.disc_opts == curr_value).argmax()
                 # sign[disc_index] = -1 # Chriss Russel original
-                sign[disc_index] = 0 # this seems smarter to me since it wont be a double "cost" for switching from the original. At least for fully discrete variables
-                dec_as_input_from = 0 # all decision variables serve as input to the neural network
-            else: # there are some continuous values
-                if curr_value < 0: # current value is < 0 if it is discrete
+                sign[disc_index] = 0  # this seems smarter to me since it wont be a double "cost" for switching from the original. At least for fully discrete variables
+                dec_as_input_from = 0  # all decision variables serve as input to the neural network
+            else:  # there are some continuous values
+                if curr_value < 0:  # current value is < 0 if it is discrete
                     disc_index = (curr_context.disc_opts == curr_value).argmax()
-                    sign[disc_index + 1] = -1 # shifted by 1 because at index 0 is dec variable for continuous spectrum
+                    sign[disc_index + 1] = -1  # shifted by 1 because at index 0 is dec variable for continuous spectrum
                     # set the value to median value, because when switched to continuous, it should take the median value
                     curr_value = curr_context.median_vals[0]
 
-                sign[0] = 0 # disregard the first decision variable, deciding if it is continuous
-                dec_as_input_from = 1 # as input to the neural network are all decision variables, except the one for continuous
+                sign[0] = 0  # disregard the first decision variable, deciding if it is continuous
+                dec_as_input_from = 1  # as input to the neural network are all decision variables, except the one for continuous
 
             dec_vars = self.counterfact_model.addVars(dec_count, lb=0, ub=1, obj=sign * curr_context.inv_MAD, vtype=gb.GRB.BINARY, name=f"dec{i}")
             dec_vars = np.asarray(dec_vars.values())
-            self.counterfact_model.addConstr(dec_vars.sum() == 1) # (4) in paper, single one must be selected
+            self.counterfact_model.addConstr(dec_vars.sum() == 1)  # (4) in paper, single one must be selected
 
-            if dec_as_input_from == 1: # need to add continuous variable setup
-                cont_ub = np.asarray((curr_value, 1 - curr_value)) # continous values are normalized between 0 and 1
+            if dec_as_input_from == 1:  # need to add continuous variable setup
+                cont_ub = np.asarray((curr_value, 1 - curr_value))  # continous values are normalized between 0 and 1
                 cont_vars = self.counterfact_model.addVars(2, lb=0, ub=cont_ub, obj=curr_context.inv_MAD[0], name=f"cont{i}")
                 cont_vars = np.asarray(cont_vars.values())
 
                 if curr_value == 0:
-                    self.counterfact_model.addConstr(cont_vars[1] <= dec_vars[0], name=f"cont_change{i}") # otherwise we would divide by 0
+                    self.counterfact_model.addConstr(cont_vars[1] <= dec_vars[0], name=f"cont_change{i}")  # otherwise we would divide by 0
                 elif curr_value == 1:
-                    self.counterfact_model.addConstr(cont_vars[0] <= dec_vars[0], name=f"cont_change{i}") # otherwise we would divide by 0
+                    self.counterfact_model.addConstr(cont_vars[0] <= dec_vars[0], name=f"cont_change{i}")  # otherwise we would divide by 0
                 else:
                     # disable change of value if discrete decision is made
                     self.counterfact_model.addConstr(
@@ -102,14 +103,14 @@ class CounterfactualGenerator:
                 raise f"Not supported type of a layer {t}"
 
         x_input = np.array(x_input)
-        x_prev = self.counterfact_model.addVars(x_input.shape[0], vtype=gb.GRB.CONTINUOUS, name=f"x_in")
-        self.counterfact_model.addConstrs((x_input[i] == x_prev[i] for i in range(x_input.shape[0])), name=f"set0")
+        x_prev = self.counterfact_model.addVars(x_input.shape[0], vtype=gb.GRB.CONTINUOUS, name="x_in")
+        self.counterfact_model.addConstrs((x_input[i] == x_prev[i] for i in range(x_input.shape[0])), name="set0")
         x_prev = np.array(x_prev.values())
         for i, t in enumerate(types):
             if t != "linear":
                 continue
             n_units = biases[i].shape[0]
-            if (i+1 < len(types)) and (types[i+1] == "ReLU"):
+            if (i + 1 < len(types)) and (types[i + 1] == "ReLU"):
                 # according to a paper by Matteo Fischetti, finding tight upper bound and setting it improves the runtime significantly
                 pos_next = self.counterfact_model.addVars(n_units, lb=0, vtype=gb.GRB.CONTINUOUS, name=f"pos{i}")
                 neg_next = self.counterfact_model.addVars(n_units, lb=0, vtype=gb.GRB.CONTINUOUS, name=f"neg{i}")
@@ -123,33 +124,33 @@ class CounterfactualGenerator:
                 self.counterfact_model.addConstrs(((z_indicator[j] == 1) >> (pos_next[j] <= 0) for j in range(n_units)), name=f"zpos{i}")
                 self.counterfact_model.addConstrs(((z_indicator[j] == 0) >> (neg_next[j] <= 0) for j in range(n_units)), name=f"zneg{i}")
                 # reqiure basic uniqueness
-                self.counterfact_model.addConstrs((z_indicator[j] <= neg_next[j]*self.uniq_bound_M for j in range(n_units)), name=f"zcheck{i}")
+                self.counterfact_model.addConstrs((z_indicator[j] <= neg_next[j] * self.uniq_bound_M for j in range(n_units)), name=f"zcheck{i}")
 
-                x_prev = np.array(pos_next.values()) # ReLU makes only the positive values to progress further
+                x_prev = np.array(pos_next.values())  # ReLU makes only the positive values to progress further
             else:
-                x_next = self.counterfact_model.addVars(n_units, lb=-np.inf, vtype=gb.GRB.CONTINUOUS, name=f"x{i}") # unbounded, can be negative
+                x_next = self.counterfact_model.addVars(n_units, lb=-np.inf, vtype=gb.GRB.CONTINUOUS, name=f"x{i}")  # unbounded, can be negative
                 self.counterfact_model.addConstrs((
                     weights[i][j].dot(x_prev) + biases[i][j] == x_next[j] for j in range(n_units)),
                     name=f"layer{i}")
                 x_prev = np.array(x_next.values())
 
         # cf_margin can ensure strong enough results, but leads to infeasibility if too high
-        if x_prev.shape[0] == 1: # binary classification
+        if x_prev.shape[0] == 1:  # binary classification
             self.counterfact_model.addConstr(x_prev[0] * self.desired_sign >= cf_margin, name="model_result")
         else:
             # set goal according to the mutliclass counterfactual
             if self.goal_class is None:  # any other class
                 not_current_class = [i for i in range(x_prev.shape[0]) if i != self.curr_class]
                 # for at least one j
-                g_indicator = self.counterfact_model.addVars(x_prev.shape[0]-1, vtype=gb.GRB.BINARY, name=f"goal")
+                g_indicator = self.counterfact_model.addVars(x_prev.shape[0] - 1, vtype=gb.GRB.BINARY, name="goal")
                 self.counterfact_model.addConstrs(
                     ((g_indicator[i] == 1) >> (x_prev[j] - x_prev[self.curr_class] >= cf_margin) for i, j in enumerate(not_current_class)),
                     name="model_result_higher")
                 self.counterfact_model.addConstrs(
                     ((g_indicator[i] == 0) >> (x_prev[j] - x_prev[self.curr_class] <= cf_margin) for i, j in enumerate(not_current_class)),
                     name="model_result_lower")
-                self.counterfact_model.addConstr(g_indicator.sum() >= 1) # at least one is higher
-            else: # specific goal class
+                self.counterfact_model.addConstr(g_indicator.sum() >= 1)  # at least one is higher
+            else:  # specific goal class
                 not_goal_class = filter(lambda i: i != self.goal_class, range(x_prev.shape[0]))
                 self.counterfact_model.addConstrs(
                     (x_prev[self.goal_class] - x_prev[j] >= cf_margin for j in not_goal_class),
@@ -161,10 +162,10 @@ class CounterfactualGenerator:
 
         # generating in bulk, set apropriate parameters
         if n_counterfactuals is not None:
-            self.counterfact_model.setParam("PoolSolutions", n_counterfactuals) # if epsilon is set, this becomes an upper bound
+            self.counterfact_model.setParam("PoolSolutions", n_counterfactuals)  # if epsilon is set, this becomes an upper bound
         if epsilon is not None:
             self.counterfact_model.setParam("PoolGap", epsilon)
-        self.counterfact_model.setParam("PoolSearchMode", 2) # search for closest local optima
+        self.counterfact_model.setParam("PoolSearchMode", 2)  # search for closest local optima
 
         # perform optimization
         self.counterfact_model.optimize()
@@ -182,7 +183,7 @@ class CounterfactualGenerator:
         if prediction.shape[0] > 1:
             # model gives mutli class decision
             self.curr_class = np.argmax(prediction, axis=0)
-            self.goal_class = goal_class # None here means that any other class but the current is sought
+            self.goal_class = goal_class  # None here means that any other class but the current is sought
             self.mutli_class = True
         else:
             # result is binary decision
@@ -193,7 +194,7 @@ class CounterfactualGenerator:
         self.base_factual = factual.copy().astype(np.float)
         for i in range(factual.size):
             if factual[i] > 0:
-                self.base_factual[i] /= self.encoder.context[i].scale # normalize continuous values
+                self.base_factual[i] /= self.encoder.context[i].scale  # normalize continuous values
 
     # ------------------- Helper functions -------------------
 
@@ -206,7 +207,7 @@ class CounterfactualGenerator:
             return variable.disc_opts[selected_i]
 
         cont_vars = variable.cont_vars
-        if selected_i == 0: # return continuous
+        if selected_i == 0:  # return continuous
             return variable.orig_val - cont_vars[0].Xn + cont_vars[1].Xn
 
         # this should hold true

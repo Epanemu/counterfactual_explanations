@@ -1,5 +1,6 @@
 import numpy as np
 
+
 class Textualizer:
     DIFF_TOLERANCE = 10e-5
 
@@ -20,15 +21,15 @@ class Textualizer:
         counter_res = labels[counterfact_class]
 
         mask = np.abs(counterfact_value - generator.base_factual) > self.DIFF_TOLERANCE
-        explanation = (f"You got score {orig_res}.\n" +
-                    f"One way you could have got score {counter_res} instead is if:\n")
+        explanation = (f"You got score {orig_res}.\n"
+                       + f"One way you could have got score {counter_res} instead is if:\n")
         changes_str = ""
         for i in range(mask.size):
             if mask[i]:
                 changes_str += (f"  {self.encoder.context[i].name} had taken value "
-                        + f"{self.__format_value(counterfact_value[i], i)} rather than "
-                        + f"{self.__format_value(generator.base_factual[i], i)} and \n")
-        explanation += changes_str[:-6] # drop " and \n" from the end
+                                + f"{self.__format_value(counterfact_value[i], i)} rather than "
+                                + f"{self.__format_value(generator.base_factual[i], i)} and \n")
+        explanation += changes_str[:-6]  # drop " and \n" from the end
         return explanation
 
     def __formulate_follow(self, counterfact, generator, labels):
@@ -41,9 +42,9 @@ class Textualizer:
         for i in range(mask.size):
             if mask[i]:
                 changes_str += (f"  {self.encoder.context[i].name} had taken value "
-                        + f"{self.__format_value(counterfact_value[i], i)} rather than "
-                        + f"{self.__format_value(generator.base_factual[i], i)} and \n")
-        explanation += changes_str[:-6] # drop " and \n" from the end
+                                + f"{self.__format_value(counterfact_value[i], i)} rather than "
+                                + f"{self.__format_value(generator.base_factual[i], i)} and \n")
+        explanation += changes_str[:-6]  # drop " and \n" from the end
         return explanation
 
     def formulate_list(self, counterfacts, generator, labels=("negative", "positive")):

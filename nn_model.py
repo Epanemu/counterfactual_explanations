@@ -6,16 +6,18 @@ import numpy as np
 # progress bar
 from tqdm import tqdm
 
+
 class SimpleDataset(Dataset):
-  def __init__(self, X, y):
-    self.X = torch.tensor(X,dtype=torch.float32)
-    self.y = torch.tensor(y)
+    def __init__(self, X, y):
+        self.X = torch.tensor(X, dtype=torch.float32)
+        self.y = torch.tensor(y)
 
-  def __len__(self):
-    return len(self.y)
+    def __len__(self):
+        return len(self.y)
 
-  def __getitem__(self,idx):
-    return self.X[idx], self.y[idx]
+    def __getitem__(self, idx):
+        return self.X[idx], self.y[idx]
+
 
 class NNModel:
     def __init__(self, input_size, hidden_sizes, output_size):
@@ -30,14 +32,14 @@ class NNModel:
         self.layers = layers
 
         self.model = nn.Sequential(*layers)
-        if output_size == 1: # it is a binary classification
+        if output_size == 1:  # it is a binary classification
             self.loss_f = nn.BCEWithLogitsLoss()
         else:
             self.loss_f = nn.CrossEntropyLoss()
 
         self.optimizer = torch.optim.AdamW(self.model.parameters())
 
-    def predict(self,x):
+    def predict(self, x):
         self.model.eval()
         with torch.no_grad():
             x = torch.tensor(x, dtype=torch.float32)
@@ -71,14 +73,13 @@ class NNModel:
             for i, (X, y) in enumerate(dataloader):
                 y_pred = self.model(X)
                 losses.append(self.loss_f(y_pred, y).item())
-                if y_pred.shape[1] > 1: # multi class
+                if y_pred.shape[1] > 1:  # multi class
                     class_pred = torch.argmax(y_pred, dim=1)
                     correct.append((class_pred == y).item())
                 else:
                     correct.append(((y_pred > 0) == y).item())
         print(f"Accuracy: {sum(correct) / y_test.shape[0] * 100:.2f}%")
         print("Average loss:", sum(losses) / y_test.shape[0])
-
 
     def get_params(self):
         types = []

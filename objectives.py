@@ -13,7 +13,10 @@ for the set of counterfactuals and for each class, compute distribution over the
 compute optimal transport for each feature distribution between classes
 
 """
+from scipy.stats import entropy
+import numpy as np
 import ot
+
 
 def compute_wd(from_data, to_data, is_categorical, bin_edges=None):
     if is_categorical:
@@ -40,15 +43,14 @@ def compute_wd(from_data, to_data, is_categorical, bin_edges=None):
             else:
                 to_counts.append(0)
 
-
         from_counts = np.array(from_counts, dtype=np.float64)
         to_counts = np.array(to_counts, dtype=np.float64)
 
         n = tot_unique.shape[0]
-        M = ( np.eye(n) == 0).astype(np.float64) # all distances are equal except to oneself
+        M = (np.eye(n) == 0).astype(np.float64)  # all distances are equal except to oneself
     else:
         if bin_edges is None:
-            from_counts, bin_edges = np.histogram(from_data, bins="fd") # compute the histogram using Freedman Diaconis Estimator for bin width
+            from_counts, bin_edges = np.histogram(from_data, bins="fd")  # compute the histogram using Freedman Diaconis Estimator for bin width
         else:
             from_counts, bin_edges = np.histogram(from_data, bins=bin_edges)
         to_counts, _ = np.histogram(to_data, bins=bin_edges)
@@ -66,7 +68,7 @@ def compute_wd(from_data, to_data, is_categorical, bin_edges=None):
         # print(from_counts, to_counts)
         # print(bin_edges)
         # print(from_data, to_data)
-    return ot.emd2(from_counts / from_counts.sum(), to_counts / to_counts.sum(), M) # emd2 returns the Earth Mover Distance loss
+    return ot.emd2(from_counts / from_counts.sum(), to_counts / to_counts.sum(), M)  # emd2 returns the Earth Mover Distance loss
 
 
 """
@@ -89,8 +91,6 @@ compute the difference between counterfactual distribution and classified distri
 
 """
 
-from scipy.stats import entropy
-import numpy as np
 
 def compute_entropy(data, is_categorical=False, bin_edges=None):
     """
@@ -104,11 +104,8 @@ def compute_entropy(data, is_categorical=False, bin_edges=None):
         _, counts = np.unique(data, return_counts=True)
     else:
         if bin_edges is None:
-            counts, bin_edges = np.histogram(data, bins="fd") # compute the histogram using Freedman Diaconis Estimator for bin width
+            counts, bin_edges = np.histogram(data, bins="fd")  # compute the histogram using Freedman Diaconis Estimator for bin width
         else:
             counts, bin_edges = np.histogram(data, bins=bin_edges)
 
-
-    return entropy(counts), bin_edges # entropy function normalizes the data to sum to 1
-
-
+    return entropy(counts), bin_edges  # entropy function normalizes the data to sum to 1
