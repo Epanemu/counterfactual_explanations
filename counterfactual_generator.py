@@ -134,8 +134,8 @@ class CounterfactualGenerator:
             self.counterfact_model.addConstr(x_prev[0] * self.desired_sign >= cf_margin, name="model_result")
         else:
             # set goal according to the mutliclass counterfactual
-            if self.goal_class == None: # any other class
-                not_current_class = filter(lambda i: i != self.curr_class, range(x_prev.shape[0]))
+            if self.goal_class is None:  # any other class
+                not_current_class = [i for i in range(x_prev.shape[0]) if i != self.curr_class]
                 # for at least one j
                 g_indicator = self.counterfact_model.addVars(x_prev.shape[0]-1, vtype=gb.GRB.BINARY, name=f"goal")
                 self.counterfact_model.addConstrs(
