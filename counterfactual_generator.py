@@ -32,6 +32,10 @@ class CounterfactualGenerator:
             gb.setParam('OutputFlag', 0)
         else:
             gb.setParam('OutputFlag', 1)
+            if self.mutli_class:
+                print("Model handeled as Multi-class clasifier")
+            else:
+                print("Model handeled as Binary clasifier")
 
         self.counterfact_model = gb.Model()
 
@@ -168,10 +172,9 @@ class CounterfactualGenerator:
             self.counterfact_model.display()
 
         if self.counterfact_model.status == gb.GRB.INFEASIBLE:
-            print("INFEASIBLE MODEL")
+            print("INFEASIBLE MODEL, see file iis_model.ilp for Irreducible Inconsistent Subset (IIS)")
             self.counterfact_model.computeIIS()
-            self.counterfact_model.write("model.ilp")
-
+            self.counterfact_model.write("iis_model.ilp")
 
     def __set_factual(self, factual, goal_class=None):
         self.expanded_factual = self.encoder.encode_datapoint(factual)
