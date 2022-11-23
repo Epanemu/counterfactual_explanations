@@ -7,7 +7,6 @@ from sklearn.model_selection import train_test_split
 
 import numpy as np
 import pandas as pd
-from tqdm import tqdm
 
 frame = pd.read_csv('adult_frame.csv')
 model_path = "model.pt"
@@ -81,13 +80,10 @@ if get_by_distance:
 
 explain_all = False
 if explain_all:
-    # THIS IMPLEMENTATION DOES NOT WORK RIGHT WITH TEXTUALIZER, it needs generator with original parameters
     # counterfactuals_list = cf_generator.explain_set(input_data.values, n_counterfactuals=5)
-    # counterfactuals_list = cf_generator.explain_set(input_data.values, epsilon=1)
+    counterfactuals_list = cf_generator.explain_set(input_data.values, epsilon=1)
     textual_data = []
-    for entry in tqdm(input_data.values):
-        counterfactuals = cf_generator.generate_close_counterfactuals(entry, 1, n_limit=5)
-        # counterfactuals = cf_generator.generate_n_counterfactuals(entry, 5))
+    for counterfactuals in counterfactuals_list:
         textual_data.append(textualizer.formulate_list(counterfactuals, labels=("BAD", "GOOD")))
     exp2 = pd.DataFrame(textual_data)
     exp2.to_csv('export/out_all.csv')
