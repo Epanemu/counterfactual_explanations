@@ -56,8 +56,14 @@ print("True target:", int(target[i][0]))
 
 # Direct approach to get n closest
 n = 3
-print(f"{n} best counterfactuals:")
+print(f"{n} best counterfactuals (possibly less because of duplicates):")
 counterfactuals = cf_generator.generate_n_counterfactuals(in_data, n)
+for cf in textualizer.formulate_list(counterfactuals, labels=("BAD", "GOOD")):
+    print(cf)
+
+print()
+print(f"{n} best counterfactuals with duplicates:")
+counterfactuals = cf_generator.generate_n_counterfactuals(in_data, n, filter_duplicates=False)
 for cf in textualizer.formulate_list(counterfactuals, labels=("BAD", "GOOD")):
     print(cf)
 

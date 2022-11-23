@@ -17,6 +17,8 @@ CounterFact = namedtuple('CounterFact', ['fact', 'counter_fact', 'orig_class', '
 
 
 class CounterfactualGenerator:
+    DIFF_TOLERANCE_DECIMALS = 6
+
     def __init__(self, model, encoder, uniq_bound_M=10e10):
         self.nn_model = model
         self.encoder = encoder
@@ -221,7 +223,7 @@ class CounterfactualGenerator:
 
     # --------------- Counterfactual Generetator functions ----------------------
 
-    def explain_set(self, entries, epsilon=None, n_counterfactuals=None, verbose=False, cf_margin=0):
+    def explain_set(self, entries, epsilon=None, n_counterfactuals=None, verbose=False, cf_margin=0, filter_duplicates=True):
         """
         Does not work well if you want to textualize the counterfactuals.
         """
@@ -229,12 +231,12 @@ class CounterfactualGenerator:
         out = []
         for entry in tqdm(entries):
             if epsilon is not None:
-                out.append(self.generate_close_counterfactuals(entry, epsilon, verbose=verbose, cf_margin=cf_margin, n_limit=n_counterfactuals))
+                out.append(self.generate_close_counterfactuals(entry, epsilon, verbose=verbose, cf_margin=cf_margin, n_limit=n_counterfactuals, filter_duplicates=filter_duplicates))
             else:
-                out.append(self.generate_n_counterfactuals(entry, n_counterfactuals, verbose=verbose, cf_margin=cf_margin))
+                out.append(self.generate_n_counterfactuals(entry, n_counterfactuals, verbose=verbose, cf_margin=cf_margin, filter_duplicates=filter_duplicates))
         return out
 
-    def __get_counterfactuals(self):
+    def __get_counterfactuals(self, filter_duplicates):
         values = []
         classes = []
         for i in range(self.counterfact_model.SolCount):
@@ -248,19 +250,25 @@ class CounterfactualGenerator:
             values.append(self.__recover_all_vals())
             classes.append(cf_class)
         orig_class = self.curr_class if self.mutli_class else int(self.fact_sign >= 0)
+        if filter_duplicates:
+            rounded = np.around(values, self.DIFF_TOLERANCE_DECIMALS)
+            _, indices = np.unique(rounded, return_index=True, axis=0)
+            # print(values[:-1] - values[1:])
+            values = np.array(values)[indices]
+            classes = np.array(classes)[indices]
         results = [
             CounterFact(fact=self.base_factual, counter_fact=cf, orig_class=orig_class, counter_class=cf_c)
             for cf, cf_c in zip(values, classes)
         ]
         return results
 
-    def generate_n_counterfactuals(self, datapoint, n_counterfactuals, verbose=False, cf_margin=0, goal_class=None):
+    def generate_n_counterfactuals(self, datapoint, n_counterfactuals, verbose=False, cf_margin=0, goal_class=None, filter_duplicates=True):
         assert n_counterfactuals > 0
         self.__set_factual(datapoint, goal_class=goal_class)
         self.__build_structure(n_counterfactuals=n_counterfactuals, verbose=verbose, cf_margin=cf_margin)
-        return self.__get_counterfactuals()
+        return self.__get_counterfactuals(filter_duplicates)
 
-    def generate_close_counterfactuals(self, datapoint, epsilon, verbose=False, cf_margin=0, n_limit=None, goal_class=None):
+    def generate_close_counterfactuals(self, datapoint, epsilon, verbose=False, cf_margin=0, n_limit=None, goal_class=None, filter_duplicates=True):
         """
         Can set maximum number of generated counterfactuals with n_limit
         Note that by default, gurobi generates only up to 10 solutions.
@@ -268,4 +276,4 @@ class CounterfactualGenerator:
         assert epsilon > 0
         self.__set_factual(datapoint, goal_class=goal_class)
         self.__build_structure(epsilon=epsilon, n_counterfactuals=n_limit, verbose=verbose, cf_margin=cf_margin)
-        return self.__get_counterfactuals()
+        return self.__get_counterfactuals(filter_duplicates)
