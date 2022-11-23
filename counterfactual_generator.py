@@ -13,6 +13,7 @@ from tqdm import tqdm
 
 from collections import namedtuple
 Var = namedtuple('Var', ['cont_vars', 'dec_vars', 'orig_val', 'disc_opts'])
+CounterFact = namedtuple('CounterFact', ['fact', 'counter_fact', 'orig_class', 'counter_class'])
 
 
 class CounterfactualGenerator:
@@ -235,18 +236,23 @@ class CounterfactualGenerator:
 
     def __get_counterfactuals(self):
         values = []
+        classes = []
         for i in range(self.counterfact_model.SolCount):
             self.counterfact_model.setParam("SolutionNumber", i)
             if self.mutli_class:
-                orig_class = self.curr_class
                 cf_class = np.argmax([x.Xn for x in self.goal_layer])
                 if self.goal_class is not None:
                     assert cf_class == self.goal_class
             else:
-                orig_class = int(self.fact_sign >= 0)
                 cf_class = int(self.desired_sign >= 0)
-            values.append((self.__recover_all_vals(), (orig_class, cf_class)))
-        return values
+            values.append(self.__recover_all_vals())
+            classes.append(cf_class)
+        orig_class = self.curr_class if self.mutli_class else int(self.fact_sign >= 0)
+        results = [
+            CounterFact(fact=self.base_factual, counter_fact=cf, orig_class=orig_class, counter_class=cf_c)
+            for cf, cf_c in zip(values, classes)
+        ]
+        return results
 
     def generate_n_counterfactuals(self, datapoint, n_counterfactuals, verbose=False, cf_margin=0, goal_class=None):
         assert n_counterfactuals > 0

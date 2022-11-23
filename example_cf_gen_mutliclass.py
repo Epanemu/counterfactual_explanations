@@ -52,7 +52,7 @@ print("True target:", y_test[i])
 relative_distance_q = 0.01
 print("Counterfactuals with any other class:")
 counterfactuals = cf_generator.generate_close_counterfactuals(in_data, relative_distance_q, n_limit=100, verbose=False, cf_margin=0.1)
-for cf in textualizer.formulate_list(counterfactuals, cf_generator, labels=[str(i) for i in range(10)]):
+for cf in textualizer.formulate_list(counterfactuals, labels=[str(i) for i in range(10)]):
     print(cf)
 
 generate_for_all_other_classses = False
@@ -61,5 +61,5 @@ if generate_for_all_other_classses:
         print()
         print(f"Counterfactuals with class {goal_class}:")
         counterfactuals = cf_generator.generate_close_counterfactuals(in_data, relative_distance_q, goal_class=goal_class, n_limit=100, verbose=False, cf_margin=0.1)
-        for cf in textualizer.formulate_list(counterfactuals, cf_generator, labels=[str(i) for i in range(10)]):
+        for cf in textualizer.formulate_list(counterfactuals, labels=[str(i) for i in range(10)]):
             print(cf)

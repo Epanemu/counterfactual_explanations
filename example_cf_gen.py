@@ -59,7 +59,7 @@ print("True target:", int(target[i][0]))
 n = 3
 print(f"{n} best counterfactuals:")
 counterfactuals = cf_generator.generate_n_counterfactuals(in_data, n)
-for cf in textualizer.formulate_list(counterfactuals, cf_generator, labels=("BAD", "GOOD")):
+for cf in textualizer.formulate_list(counterfactuals, labels=("BAD", "GOOD")):
     print(cf)
 
 print()
@@ -67,7 +67,7 @@ print()
 margin = 1
 print(f"{n} best counterfactuals with margin {margin} of the classifier value:")
 counterfactuals = cf_generator.generate_n_counterfactuals(in_data, n, cf_margin=margin)
-for cf in textualizer.formulate_list(counterfactuals, cf_generator, labels=("BAD", "GOOD")):
+for cf in textualizer.formulate_list(counterfactuals, labels=("BAD", "GOOD")):
     print(cf)
 
 get_by_distance = False
@@ -76,7 +76,7 @@ if get_by_distance:
     print()
     print("Counterfactuals close to optimum:")
     counterfactuals = cf_generator.generate_close_counterfactuals(in_data, relative_distance_q, n_limit=100, verbose=False)
-    for cf in textualizer.formulate_list(counterfactuals, cf_generator, labels=("BAD", "GOOD")):
+    for cf in textualizer.formulate_list(counterfactuals, labels=("BAD", "GOOD")):
         print(cf)
 
 explain_all = False
@@ -88,7 +88,7 @@ if explain_all:
     for entry in tqdm(input_data.values):
         counterfactuals = cf_generator.generate_close_counterfactuals(entry, 1, n_limit=5)
         # counterfactuals = cf_generator.generate_n_counterfactuals(entry, 5))
-        textual_data.append(textualizer.formulate_list(counterfactuals, cf_generator, labels=("BAD", "GOOD")))
+        textual_data.append(textualizer.formulate_list(counterfactuals, labels=("BAD", "GOOD")))
     exp2 = pd.DataFrame(textual_data)
     exp2.to_csv('export/out_all.csv')
 
@@ -102,5 +102,5 @@ if custom_change:
     n = 1
     print(f"{n} best counterfactuals:")
     counterfactuals = cf_generator.generate_n_counterfactuals(in_data, n)
-    for cf in textualizer.formulate_list(counterfactuals, cf_generator, labels=("BAD", "GOOD")):
+    for cf in textualizer.formulate_list(counterfactuals, labels=("BAD", "GOOD")):
         print(cf)

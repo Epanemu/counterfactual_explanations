@@ -15,42 +15,40 @@ class Textualizer:
             return str_val + f" ({np.round(value).astype(int)})"
         return f"{np.round(value * self.encoder.context[i].scale, 2)}"
 
-    def formulate(self, counterfact, generator, labels=("negative", "positive")):
-        counterfact_value, (orig_class, counterfact_class) = counterfact
-        orig_res = labels[orig_class]
-        counter_res = labels[counterfact_class]
+    def formulate(self, cf, labels=("negative", "positive")):
+        orig_res = labels[cf.orig_class]
+        counter_res = labels[cf.counter_class]
 
-        mask = np.abs(counterfact_value - generator.base_factual) > self.DIFF_TOLERANCE
+        mask = np.abs(cf.counter_fact - cf.fact) > self.DIFF_TOLERANCE
         explanation = (f"You got score {orig_res}.\n"
                        + f"One way you could have got score {counter_res} instead is if:\n")
         changes_str = ""
         for i in range(mask.size):
             if mask[i]:
                 changes_str += (f"  {self.encoder.context[i].name} had taken value "
-                                + f"{self.__format_value(counterfact_value[i], i)} rather than "
-                                + f"{self.__format_value(generator.base_factual[i], i)} and \n")
+                                + f"{self.__format_value(cf.counter_fact[i], i)} rather than "
+                                + f"{self.__format_value(cf.fact[i], i)} and \n")
         explanation += changes_str[:-6]  # drop " and \n" from the end
         return explanation
 
-    def __formulate_follow(self, counterfact, generator, labels):
-        counterfact_value, (_, counterfact_class) = counterfact
-        counter_res = labels[counterfact_class]
+    def __formulate_follow(self, cf, labels):
+        counter_res = labels[cf.counter_class]
 
-        mask = np.abs(counterfact_value - generator.base_factual) > self.DIFF_TOLERANCE
+        mask = np.abs(cf.counter_fact - cf.fact) > self.DIFF_TOLERANCE
         explanation = f"Another way you could have got score {counter_res} instead is if:\n"
         changes_str = ""
         for i in range(mask.size):
             if mask[i]:
                 changes_str += (f"  {self.encoder.context[i].name} had taken value "
-                                + f"{self.__format_value(counterfact_value[i], i)} rather than "
-                                + f"{self.__format_value(generator.base_factual[i], i)} and \n")
+                                + f"{self.__format_value(cf.counter_fact[i], i)} rather than "
+                                + f"{self.__format_value(cf.fact[i], i)} and \n")
         explanation += changes_str[:-6]  # drop " and \n" from the end
         return explanation
 
-    def formulate_list(self, counterfacts, generator, labels=("negative", "positive")):
+    def formulate_list(self, counterfacts, labels=("negative", "positive")):
         if len(counterfacts) == 0:
             return []
-        explanations = [self.formulate(counterfacts[0], generator, labels=labels)]
+        explanations = [self.formulate(counterfacts[0], labels=labels)]
         for counterfact in counterfacts[1:]:
-            explanations.append(self.__formulate_follow(counterfact, generator, labels))
+            explanations.append(self.__formulate_follow(counterfact, labels))
         return explanations
