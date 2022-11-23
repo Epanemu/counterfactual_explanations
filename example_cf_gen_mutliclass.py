@@ -51,6 +51,7 @@ print("True target:", y_test[i])
 
 relative_distance_q = 0.01
 print("Counterfactuals with any other class:")
+# I have observed, that with margin 0 the optimum is at a draw (or almost draw in the numerical unstable way) between 2 or more classes
 counterfactuals = cf_generator.generate_close_counterfactuals(in_data, relative_distance_q, n_limit=100, verbose=False, cf_margin=0.1)
 for cf in textualizer.formulate_list(counterfactuals, labels=[str(i) for i in range(10)]):
     print(cf)
