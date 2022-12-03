@@ -173,9 +173,10 @@ class CounterfactualGenerator:
             self.counterfact_model.display()
 
         if self.counterfact_model.status == gb.GRB.INFEASIBLE:
-            print("INFEASIBLE MODEL, see file iis_model.ilp for Irreducible Inconsistent Subset (IIS)")
+            print("INFEASIBLE MODEL")
             self.counterfact_model.computeIIS()
             self.counterfact_model.write("iis_model.ilp")
+            print("see file iis_model.ilp for Irreducible Inconsistent Subset (IIS)")
 
     def __set_factual(self, factual, goal_class=None):
         self.expanded_factual = self.encoder.encode_datapoint(factual)
