@@ -195,7 +195,7 @@ class CounterfactualGenerator:
 
     # --------------- Counterfactual Generetator functions ----------------------
 
-    def explain_set(self, entries, model_wrapper, epsilon=None, n_counterfactuals=None, verbose=False, cf_margin=0, filter_duplicates=True):
+    def explain_set(self, entries, model_wrapper, epsilon=None, n_counterfactuals=None, verbose=False, cf_margin=0, filter_duplicates=False):
         """
         Does not work well if you want to textualize the counterfactuals.
         """
@@ -234,13 +234,13 @@ class CounterfactualGenerator:
         ]
         return results
 
-    def generate_n_counterfactuals(self, datapoint, model_wrapper, n_counterfactuals, verbose=False, cf_margin=0, goal_class=None, filter_duplicates=True):
+    def generate_n_counterfactuals(self, datapoint, model_wrapper, n_counterfactuals, verbose=False, cf_margin=0, goal_class=None, filter_duplicates=False):
         assert n_counterfactuals > 0
         self.__set_factual(datapoint, model_wrapper, goal_class=goal_class)
         self.__build_structure(n_counterfactuals=n_counterfactuals, nn_model=model_wrapper.model, verbose=verbose, cf_margin=cf_margin)
         return self.__get_counterfactuals(filter_duplicates)
 
-    def generate_close_counterfactuals(self, datapoint, model_wrapper, epsilon, verbose=False, cf_margin=0, n_limit=None, goal_class=None, filter_duplicates=True):
+    def generate_close_counterfactuals(self, datapoint, model_wrapper, epsilon, verbose=False, cf_margin=0, n_limit=None, goal_class=None, filter_duplicates=False):
         """
         Can set maximum number of generated counterfactuals with n_limit
         Note that by default, gurobi generates only up to 10 solutions.
