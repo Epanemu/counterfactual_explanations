@@ -1,17 +1,28 @@
-# Diverse Coherent Explanations
+# Generating set of counterfactuals within distance to optimum
 
-This code is an implementation of the paper "Efficient Search for Diverse
-Coherent Explanations". 
-https://arxiv.org/pdf/1901.04909.pdf 
+This code used an implementation of the paper ["Efficient Search for Diverse
+Coherent Explanations"](https://arxiv.org/pdf/1901.04909.pdf) by Chriss Russel.
 
-By default it makes use of the adult dataset (included). 
-To run the FICO experiments in the paper, it requires a copy of the
-FICO data taken from:
-https://community.fico.com/s/explainable-machine-learning-challenge?&tabset-3158a=2
+Original code can be found in the folder `original/`
 
-It also uses the gurobi solver http://www.gurobi.com/ for the MIP solver. 
+Instead of diverse coherent explanations, the focus is on generating a set of
+counterfactuals closest to optimal counterfactual.
 
-The code explicitly targets the FICO dataset and has made a couple of simple
+By default it makes use of the adult dataset (included), or MNIST for the mutli
+class problem.
+
+It also uses the [gurobi solver](http://www.gurobi.com/) for the MIP solver, and
+[`gurobi-machinelearning`](https://github.com/Gurobi/gurobi-machinelearning)
+package for the NN computation. However, a custom
+implementation, using the methods presented by M. Fischetti and J. Jo
+["Deep neural networks and mixed integer linear optimization"
+](https://link.springer.com/article/10.1007/s10601-018-9285-6)
+
+That implementation has shown better performance when it comes to speed, but lower
+quality of solutions, because of many duplicate counterfactuals.
+
+## Encoder for data
+The encoder explicitly targets the FICO dataset and has made a couple of simple
 assumptions as to the form the dataset takes. Each variable is assumed to take a
 range of continuous values and a set of discrete values; as simplifying
 assumptions we assume that all strictly negative values are the discrete values,
@@ -24,18 +35,12 @@ in the adult dataset the 'workclass' variable takes the following values.
 
 If this is not the case for your dataset, the code can be adapted to match
 assumptions, but it probably easier to manipulate the data so that it follows
-these assumptions -- this manipulation has already been done for the adult 
+these assumptions -- this manipulation has already been done for the adult
 dataset.
 
-The code counterfactual.py is a library that implements an object based
-interface at over the code. 
+## Further own contribution
+This is an extended version containing also generation of a set of explanations
+closest to the optimum.
 
-example.py is a commented demo that learns a logistic regression classifier 
-over datasets using the encoding described in the original paper, and then 
-generates counterfactual explanations.
-
-Thanks to Ramaravind Mothilal for helping with the adult demo.
-
-### Further contribution
-This is an extended version containing also generation of set number of mahtematically 
-closest explanations.
+Plus the handling of categorical variables has been fixed, so now the model is
+correct for categorical, quantitative and mixed input features.
