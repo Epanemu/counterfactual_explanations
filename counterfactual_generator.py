@@ -154,7 +154,7 @@ class CounterfactualGenerator:
     def __set_factual(self, factual, model_wrapper, goal_class=None):
         self.expanded_factual = self.encoder.encode_datapoint(factual)
         prediction = model_wrapper.predict(self.expanded_factual)
-        self.output_shape = prediction.numpy().shape
+        self.output_shape = prediction.shape
         if self.output_shape[0] > 1:
             # model gives mutli class decision
             self.curr_class = np.argmax(prediction, axis=0)

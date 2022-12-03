@@ -43,7 +43,7 @@ class NNModel:
         with torch.no_grad():
             x = torch.tensor(x, dtype=torch.float32)
             res = self.model(x)
-        return res
+        return res.numpy()
 
     def train(self, X_train, y_train, epochs=50, batch_size=64):
         dataset = SimpleDataset(X_train, y_train)
