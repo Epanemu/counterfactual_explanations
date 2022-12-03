@@ -1,7 +1,6 @@
 import torch
 from torch import nn
 from torch.utils.data import Dataset, DataLoader
-import numpy as np
 
 # progress bar
 from tqdm import tqdm
