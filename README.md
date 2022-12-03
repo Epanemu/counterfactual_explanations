@@ -44,3 +44,8 @@ closest to the optimum.
 
 Plus the handling of categorical variables has been fixed, so now the model is
 correct for categorical, quantitative and mixed input features.
+
+#### Extra files
+This repository also contains an attempt to create a optimizing function regarding
+the set of counterfactuals, however this is a work in progress, not yet something
+of a significant value.
