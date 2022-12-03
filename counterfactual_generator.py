@@ -20,12 +20,11 @@ CounterFact = namedtuple('CounterFact', ['fact', 'counter_fact', 'orig_class', '
 class CounterfactualGenerator:
     DIFF_TOLERANCE_DECIMALS = 6
 
-    def __init__(self, model, encoder, uniq_bound_M=10e10):
-        self.nn_model = model
+    def __init__(self, encoder, uniq_bound_M=10e10):
         self.encoder = encoder
         self.uniq_bound_M = uniq_bound_M
 
-    def __build_structure(self, n_counterfactuals=None, epsilon=None, verbose=False, cf_margin=0):
+    def __build_structure(self, n_counterfactuals=None, epsilon=None, nn_model=None, verbose=False, cf_margin=0):
         """
         build the Core programme of the model that induces
         counterfactuals for the datapoint base_factual
@@ -106,7 +105,7 @@ class CounterfactualGenerator:
         output_vars = self.counterfact_model.addMVar(self.output_shape, lb=-gb.GRB.INFINITY, name="nn_output")
 
         # setup of the neural network computation within the ILP model
-        gurobi_ml.add_predictor_constr(self.counterfact_model, self.nn_model.model, input_vars, output_vars)
+        gurobi_ml.add_predictor_constr(self.counterfact_model, nn_model, input_vars, output_vars)
 
         # cf_margin can ensure strong enough results, but leads to infeasibility if too high
         if self.output_shape[0] == 1:  # binary classification
@@ -152,9 +151,9 @@ class CounterfactualGenerator:
             self.counterfact_model.write("iis_model.ilp")
             print("see file iis_model.ilp for Irreducible Inconsistent Subset (IIS)")
 
-    def __set_factual(self, factual, goal_class=None):
+    def __set_factual(self, factual, model_wrapper, goal_class=None):
         self.expanded_factual = self.encoder.encode_datapoint(factual)
-        prediction = self.nn_model.predict(self.expanded_factual)
+        prediction = model_wrapper.predict(self.expanded_factual)
         self.output_shape = prediction.numpy().shape
         if self.output_shape[0] > 1:
             # model gives mutli class decision
@@ -196,7 +195,7 @@ class CounterfactualGenerator:
 
     # --------------- Counterfactual Generetator functions ----------------------
 
-    def explain_set(self, entries, epsilon=None, n_counterfactuals=None, verbose=False, cf_margin=0, filter_duplicates=True):
+    def explain_set(self, entries, model_wrapper, epsilon=None, n_counterfactuals=None, verbose=False, cf_margin=0, filter_duplicates=True):
         """
         Does not work well if you want to textualize the counterfactuals.
         """
@@ -204,9 +203,9 @@ class CounterfactualGenerator:
         out = []
         for entry in tqdm(entries):
             if epsilon is not None:
-                out.append(self.generate_close_counterfactuals(entry, epsilon, verbose=verbose, cf_margin=cf_margin, n_limit=n_counterfactuals, filter_duplicates=filter_duplicates))
+                out.append(self.generate_close_counterfactuals(entry, model_wrapper, epsilon, verbose=verbose, cf_margin=cf_margin, n_limit=n_counterfactuals, filter_duplicates=filter_duplicates))
             else:
-                out.append(self.generate_n_counterfactuals(entry, n_counterfactuals, verbose=verbose, cf_margin=cf_margin, filter_duplicates=filter_duplicates))
+                out.append(self.generate_n_counterfactuals(entry, model_wrapper, n_counterfactuals, verbose=verbose, cf_margin=cf_margin, filter_duplicates=filter_duplicates))
         return out
 
     def __get_counterfactuals(self, filter_duplicates):
@@ -235,18 +234,18 @@ class CounterfactualGenerator:
         ]
         return results
 
-    def generate_n_counterfactuals(self, datapoint, n_counterfactuals, verbose=False, cf_margin=0, goal_class=None, filter_duplicates=True):
+    def generate_n_counterfactuals(self, datapoint, model_wrapper, n_counterfactuals, verbose=False, cf_margin=0, goal_class=None, filter_duplicates=True):
         assert n_counterfactuals > 0
-        self.__set_factual(datapoint, goal_class=goal_class)
-        self.__build_structure(n_counterfactuals=n_counterfactuals, verbose=verbose, cf_margin=cf_margin)
+        self.__set_factual(datapoint, model_wrapper, goal_class=goal_class)
+        self.__build_structure(n_counterfactuals=n_counterfactuals, nn_model=model_wrapper.model, verbose=verbose, cf_margin=cf_margin)
         return self.__get_counterfactuals(filter_duplicates)
 
-    def generate_close_counterfactuals(self, datapoint, epsilon, verbose=False, cf_margin=0, n_limit=None, goal_class=None, filter_duplicates=True):
+    def generate_close_counterfactuals(self, datapoint, model_wrapper, epsilon, verbose=False, cf_margin=0, n_limit=None, goal_class=None, filter_duplicates=True):
         """
         Can set maximum number of generated counterfactuals with n_limit
         Note that by default, gurobi generates only up to 10 solutions.
         """
         assert epsilon > 0
-        self.__set_factual(datapoint, goal_class=goal_class)
-        self.__build_structure(epsilon=epsilon, n_counterfactuals=n_limit, verbose=verbose, cf_margin=cf_margin)
+        self.__set_factual(datapoint, model_wrapper, goal_class=goal_class)
+        self.__build_structure(epsilon=epsilon, n_counterfactuals=n_limit, nn_model=model_wrapper.model, verbose=verbose, cf_margin=cf_margin)
         return self.__get_counterfactuals(filter_duplicates)
