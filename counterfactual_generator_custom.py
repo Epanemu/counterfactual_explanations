@@ -105,37 +105,34 @@ class CounterfactualGenerator:
             if t not in ["linear", "ReLU"]:
                 raise f"Not supported type of a layer {t}"
 
-        x_input = np.array(x_input)
-        x_prev = self.counterfact_model.addVars(x_input.shape[0], vtype=gb.GRB.CONTINUOUS, name="x_in")
-        self.counterfact_model.addConstrs((x_input[i] == x_prev[i] for i in range(x_input.shape[0])), name="set0")
-        x_prev = np.array(x_prev.values())
+        input_vars = self.counterfact_model.addMVar((len(x_input), 1), lb=0, ub=1, name="nn_input")
+        self.counterfact_model.addConstrs((input_vars[i] == x_input[i] for i in range(len(x_input))), name="nn_input_setup")
+
+        x_prev = input_vars
         for i, t in enumerate(types):
             if t != "linear":
                 continue
-            n_units = biases[i].shape[0]
+            x_next_shape = biases[i].shape
             if (i + 1 < len(types)) and (types[i + 1] == "ReLU"):
-                # according to a paper by Matteo Fischetti, finding tight upper bound and setting it improves the runtime significantly
-                pos_next = self.counterfact_model.addVars(n_units, lb=0, vtype=gb.GRB.CONTINUOUS, name=f"pos{i}")
-                neg_next = self.counterfact_model.addVars(n_units, lb=0, vtype=gb.GRB.CONTINUOUS, name=f"neg{i}")
-                z_indicator = self.counterfact_model.addVars(n_units, vtype=gb.GRB.BINARY, name=f"z{i}")
-
+                # according to a paper by Matteo Fischetti, finding (and setting) tight bounds on following variables improves the runtime significantly
+                # handy for repeated runs
+                pos_next = self.counterfact_model.addMVar(x_next_shape, lb=0, vtype=gb.GRB.CONTINUOUS, name=f"pos{i}")
+                neg_next = self.counterfact_model.addMVar(x_next_shape, lb=0, vtype=gb.GRB.CONTINUOUS, name=f"neg{i}")
                 # constraints representing layer computation
-                self.counterfact_model.addConstrs((
-                    weights[i][j].dot(x_prev) + biases[i][j] == pos_next[j] - neg_next[j] for j in range(n_units)),
-                    name=f"layer{i}")
-                # ReLU indicator constraints
-                self.counterfact_model.addConstrs(((z_indicator[j] == 1) >> (pos_next[j] <= 0) for j in range(n_units)), name=f"zpos{i}")
-                self.counterfact_model.addConstrs(((z_indicator[j] == 0) >> (neg_next[j] <= 0) for j in range(n_units)), name=f"zneg{i}")
-                # reqiure basic uniqueness
-                self.counterfact_model.addConstrs((z_indicator[j] <= neg_next[j] * self.uniq_bound_M for j in range(n_units)), name=f"zcheck{i}")
+                self.counterfact_model.addConstr(weights[i] @ x_prev + biases[i] == pos_next - neg_next, name=f"layer{i}")
 
-                x_prev = np.array(pos_next.values())  # ReLU makes only the positive values to progress further
+                # ReLU indicator constraints
+                z_indicator = self.counterfact_model.addVars(x_next_shape[0], vtype=gb.GRB.BINARY, name=f"z{i}")
+                self.counterfact_model.addConstrs(((z_indicator[j] == 1) >> (pos_next[j] <= 0) for j in range(x_next_shape[0])), name=f"zpos{i}")
+                self.counterfact_model.addConstrs(((z_indicator[j] == 0) >> (neg_next[j] <= 0) for j in range(x_next_shape[0])), name=f"zneg{i}")
+                # reqiure some uniqueness
+                self.counterfact_model.addConstrs((z_indicator[j] <= neg_next[j] * self.uniq_bound_M for j in range(x_next_shape[0])), name=f"zcheck{i}")
+
+                x_prev = pos_next  # ReLU makes only the positive values to progress further
             else:
-                x_next = self.counterfact_model.addVars(n_units, lb=-np.inf, vtype=gb.GRB.CONTINUOUS, name=f"x{i}")  # unbounded, can be negative
-                self.counterfact_model.addConstrs((
-                    weights[i][j].dot(x_prev) + biases[i][j] == x_next[j] for j in range(n_units)),
-                    name=f"layer{i}")
-                x_prev = np.array(x_next.values())
+                x_next = self.counterfact_model.addMVar(x_next_shape, lb=-gb.GRB.INFINITY, vtype=gb.GRB.CONTINUOUS, name=f"x{i}")  # unbounded, can be negative
+                self.counterfact_model.addConstr(x_next == weights[i] @ x_prev + biases[i], name=f"layer{i}")
+                x_prev = x_next
 
         # cf_margin can ensure strong enough results, but leads to infeasibility if too high
         if x_prev.shape[0] == 1:  # binary classification

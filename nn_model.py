@@ -89,7 +89,7 @@ class NNModel:
             if isinstance(layer, nn.Linear):
                 types.append("linear")
                 weights.append(np.array(layer.state_dict()['weight']))
-                biases.append(np.array(layer.state_dict()['bias']))
+                biases.append(np.array(layer.state_dict()['bias']).reshape(-1, 1))
             elif isinstance(layer, nn.ReLU):
                 types.append("ReLU")
                 weights.append(None)
