@@ -19,7 +19,8 @@ implementation, using the methods presented by M. Fischetti and J. Jo
 ](https://link.springer.com/article/10.1007/s10601-018-9285-6)
 
 That implementation has shown better performance when it comes to speed, but lower
-quality of solutions, because of many duplicate counterfactuals.
+quality of solutions, because of many duplicate counterfactuals. If that does not 
+bother you, use the code in the `custom_nn_implementation/` folder
 
 ## Encoder for data
 The encoder explicitly targets the FICO dataset and has made a couple of simple
