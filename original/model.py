@@ -8,6 +8,8 @@ class LRModel:
         lr = skl.LogisticRegressionCV(solver='sag')
         if subset is not False:
             self.model = lr.fit(encoded[subset], target)
+            # acc = self.model.predict(encoded[subset]) == target
+            # print(acc.mean())
         else:
             self.model = lr.fit(encoded, target)
 

@@ -1,0 +1,12 @@
+gurobi-machinelearning==1.0.1
+gurobipy==10.0.0
+numpy==1.23.1
+mnist-py==0.6
+pandas==1.4.3
+scikit-learn==1.1.2
+torch==1.13.0
+
+# optional additional
+jupyterlab==3.4.4
+matplotlib==3.5.2
+tqdm==4.64.1
