@@ -24,9 +24,8 @@ package for the NN computation.
 There is also a custom NN implementation, using the methods presented by M. Fischetti and J. Jo
 ["Deep neural networks and mixed integer linear optimization"](https://link.springer.com/article/10.1007/s10601-018-9285-6)
 That implementation has shown better performance when it comes to speed, but lower
-
-quality of solutions, because it generates duplicate counterfactuals. If that does not 
-bother you, use the code in the `custom_nn_implementation/` folder
+quality of solutions, because it generates duplicate counterfactuals. If that does not
+bother you, use the code in the `custom_nn_implementation/` folder.
 
 ## Encoder for data
 The encoder explicitly targets the FICO dataset and has made a couple of simple
@@ -48,6 +47,6 @@ dataset.
 ## Further own contribution
 The encoder was improved from the work of Chriss Russel. The handling of categorical variables is corrected, so now the model works well for categorical, numerical and mixed input features.
 
-## Objective functions
+### Objective functions
 This repository also contains an attempt to create a utility function regarding
 the set of counterfactuals. This is a work in progress.
