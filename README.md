@@ -1,25 +1,31 @@
 # Generating set of counterfactuals within distance to optimum
 
-This code used an implementation of the paper ["Efficient Search for Diverse
+This code used as a starting point an implementation of the paper ["Efficient Search for Diverse
 Coherent Explanations"](https://arxiv.org/pdf/1901.04909.pdf) by Chriss Russel.
 
-Original code can be found in the folder `original/`
+Original code by Chriss Russell can be found in the [original repository](https://bitbucket.org/ChrisRussell/diverse-coherent-explanations/src/master/).
 
-Instead of diverse coherent explanations, the focus is on generating a set of
+He used Logistic Regression and focused on generating diverse explanations.
+This codebase used his formulation of mixed type inputs (polytopes) and modelling of the
+changes of inputs with respect to the original value of the factual. Other
+than that, code is my own. The code used was also significantly improved and
+clarified as to what the various parts of the code mean.
+
+Instead of diverse coherent explanations, the focus here is on generating a set of
 counterfactuals closest to optimal counterfactual.
 
-By default it makes use of the adult dataset (included), or MNIST for the mutli
+Examples provided use the adult dataset (included), or MNIST for the mutli
 class problem.
 
-It also uses the [gurobi solver](http://www.gurobi.com/) for the MIP solver, and
+The code uses the [Gurobi solver](http://www.gurobi.com/) for the MIP solver, and
 [`gurobi-machinelearning`](https://github.com/Gurobi/gurobi-machinelearning)
-package for the NN computation. However, a custom
-implementation, using the methods presented by M. Fischetti and J. Jo
-["Deep neural networks and mixed integer linear optimization"
-](https://link.springer.com/article/10.1007/s10601-018-9285-6)
+package for the NN computation.
 
+There is also a custom NN implementation, using the methods presented by M. Fischetti and J. Jo
+["Deep neural networks and mixed integer linear optimization"](https://link.springer.com/article/10.1007/s10601-018-9285-6)
 That implementation has shown better performance when it comes to speed, but lower
-quality of solutions, because of many duplicate counterfactuals. If that does not 
+
+quality of solutions, because it generates duplicate counterfactuals. If that does not 
 bother you, use the code in the `custom_nn_implementation/` folder
 
 ## Encoder for data
@@ -40,13 +46,8 @@ these assumptions -- this manipulation has already been done for the adult
 dataset.
 
 ## Further own contribution
-This is an extended version containing also generation of a set of explanations
-closest to the optimum.
+The encoder was improved from the work of Chriss Russel. The handling of categorical variables is corrected, so now the model works well for categorical, numerical and mixed input features.
 
-Plus the handling of categorical variables has been fixed, so now the model is
-correct for categorical, quantitative and mixed input features.
-
-#### Extra files
-This repository also contains an attempt to create a optimizing function regarding
-the set of counterfactuals, however this is a work in progress, not yet something
-of a significant value.
+## Objective functions
+This repository also contains an attempt to create a utility function regarding
+the set of counterfactuals. This is a work in progress.
