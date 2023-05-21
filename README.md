@@ -1,7 +1,8 @@
 # Generating set of counterfactuals within distance to optimum
 
 This code used as a starting point an implementation of the paper ["Efficient Search for Diverse
-Coherent Explanations"](https://arxiv.org/pdf/1901.04909.pdf) by Chriss Russel.
+Coherent Explanations"](https://arxiv.org/pdf/1901.04909.pdf) by Chriss Russel. 
+Only the implementation of a mixed polytope input encoding is used here.
 
 Original code by Chriss Russell can be found in the [original repository](https://bitbucket.org/ChrisRussell/diverse-coherent-explanations/src/master/).
 
@@ -12,7 +13,7 @@ than that, code is my own. The code used was also significantly improved and
 clarified as to what the various parts of the code mean.
 
 Instead of diverse coherent explanations, the focus here is on generating a set of
-counterfactuals closest to optimal counterfactual.
+counterfactuals closest to original factual.
 
 Examples provided use the adult dataset (included), or MNIST for the mutli
 class problem.
@@ -45,9 +46,11 @@ assumptions, but it probably easier to manipulate the data so that it follows
 these assumptions -- this manipulation has already been done for the adult
 dataset.
 
-## Further own contribution
-The encoder was improved from the work of Chriss Russel. The handling of categorical variables is corrected, so now the model works well for categorical, numerical and mixed input features.
+## Further contribution
+The input encoder was improved from the work of Chriss Russel. The handling of categorical variables is corrected, so now the model works well for categorical, numerical and mixed input features.
 
 ## Objective functions
-This repository also contains an attempt to create a utility function regarding
-the set of counterfactuals. This is a work in progress.
+This repository also contains a couple of attempts to create a utility function regarding
+the set of counterfactuals. 
+
+See `example_objective.py` for furhter details about the functions. 
