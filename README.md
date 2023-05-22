@@ -51,6 +51,8 @@ The input encoder was improved from the work of Chriss Russel. The handling of c
 
 ## Objective functions
 This repository also contains a couple of attempts to create a utility function regarding
-the set of counterfactuals. 
+the set of counterfactuals.
 
 See `example_objective.py` for furhter details about the functions. 
+
+This is still a work-in-progress.
