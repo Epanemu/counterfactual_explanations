@@ -59,12 +59,13 @@ class CounterfactualGenerator:
             if curr_context.scale == 0:  # variable is fully discrete
                 disc_index = (curr_context.disc_opts == curr_value).argmax()
                 # sign[disc_index] = -1 # Chriss Russel original
-                sign[disc_index] = 0  # this seems smarter to me since it wont be a double "cost" for switching from the original. At least for fully discrete variables
+                sign[disc_index] = 0  # this is better since it wont be a double "cost" for switching from the original. At least for fully discrete variables
                 dec_as_input_from = 0  # all decision variables serve as input to the neural network
             else:  # there are some continuous values
                 if curr_value < 0:  # current value is < 0 if it is discrete
                     disc_index = (curr_context.disc_opts == curr_value).argmax()
-                    sign[disc_index + 1] = -1  # shifted by 1 because at index 0 is dec variable for continuous spectrum
+                    disc_index += 1  # shifted by 1 because at index 0 is dec variable for continuous spectrum
+                    sign[disc_index] = -1
                     # set the value to median value, because when switched to continuous, it should take the median value
                     curr_value = curr_context.median_vals[0]
 
@@ -72,6 +73,9 @@ class CounterfactualGenerator:
                 dec_as_input_from = 1  # as input to the neural network are all decision variables, except the one for continuous
 
             dec_vars = self.counterfact_model.addVars(dec_count, lb=0, ub=1, obj=sign * curr_context.inv_MAD, vtype=gb.GRB.BINARY, name=f"dec{i}")
+            if curr_context.categorical_ordered and curr_context.increasing:  # if the categorical values are ordered
+                self.counterfact_model.addConstr(dec_vars[dec_as_input_from:disc_index-1] == 0, name=f"{i}_cannot_get_lower")
+
             dec_vars = np.asarray(dec_vars.values())
             self.counterfact_model.addConstr(dec_vars.sum() == 1)  # (4) in paper, single one must be selected
 
@@ -97,6 +101,8 @@ class CounterfactualGenerator:
 
                 # add continuous variables to the x_input vector
                 x_input.append(curr_value * dec_vars[0] - cont_vars[0] + cont_vars[1])
+            else:
+                cont_vars = None
 
             self.counterfact_model.update()
 

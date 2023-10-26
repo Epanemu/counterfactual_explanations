@@ -4,23 +4,30 @@ from collections import namedtuple
 
 
 class MixedEncoder:
-    Context = namedtuple('Context', ['name', 'values_table', 'median_vals', 'inv_MAD', "disc_opts", "scale", "increasing"])
+    Context = namedtuple('Context', ['name', 'values_table', 'median_vals', 'inv_MAD', "disc_opts", "scale", "categorical_ordered", "increasing"])
 
-    def __init__(self, pandas_dataframe, increasing_columns=[]):
+    def __init__(self, pandas_dataframe, categorical_order={}, increasing_columns=[]):
         """
         Build a training set of dummy encoded variables from existing inputdata
 
         Assumes discrete values are negative (if variable is fully discrete, one value should still be 0)
         For continuous values are reserved all positive values (including 0, in case of continuous or mixed type variables)
+
         User can add column names of features that cannot decrease in the list increasing_columns
+        and column names with lists representing an order of its categorical values
         """
         self.n_vars = pandas_dataframe.columns.size
         self.context = np.empty(self.n_vars, dtype=np.object)
-        for i in range(pandas_dataframe.columns.shape[0]):
+        for i in range(pandas_dataframe.columns.shape[0]):  # TODO make this into enumerate
             col_data = pandas_dataframe[pandas_dataframe.columns[i]]
+            # TODO replace discrete wording for categorical
 
             discrete_vals = np.minimum(col_data, 0)  # discrete values (0 represents continuous values if any)
             discrete_options = np.unique(discrete_vals)  # get all indicator values
+            if pandas_dataframe.columns[i] in categorical_order:
+                ordered_categorical = ([0] if 0 in discrete_options else []) + categorical_order[pandas_dataframe.columns[i]]
+                assert all(opt in ordered_categorical for opt in discrete_options), "Some value in data is not in the ordering"
+                discrete_options = ordered_categorical
 
             # create table of values of the right size, regardless if first position will be another discrete or continuous
             table_values = np.zeros((discrete_options.shape[0], col_data.shape[0]))
@@ -54,7 +61,7 @@ class MixedEncoder:
                 MAD[0] = 1e-4  # for numerical stability
                 discrete_options = np.array([])
             else:
-                # 0 scale is the indicator of solely categorical variable
+                # 0 scale is the indicator of purely categorical variable
                 scale = 0
                 j = 0
 
@@ -66,7 +73,9 @@ class MixedEncoder:
                 j += 1
             self.context[i] = MixedEncoder.Context(
                 name=pandas_dataframe.columns[i], values_table=table_values, median_vals=median_vals,
-                inv_MAD=1.0 / MAD, disc_opts=discrete_options, scale=scale, increasing=pandas_dataframe.columns[i] in increasing_columns)
+                inv_MAD=1.0 / MAD, disc_opts=discrete_options, scale=scale,
+                categorical_ordered=pandas_dataframe.columns[i] in categorical_order,
+                increasing=pandas_dataframe.columns[i] in increasing_columns)
 
         self.encoding_size = sum(map(lambda x: x.median_vals.shape[0], self.context))
 
