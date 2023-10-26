@@ -26,7 +26,7 @@ class CounterfactualGenerator:
 
     def __build_structure(self, n_counterfactuals=None, epsilon=None, nn_model=None, verbose=False, cf_margin=0):
         """
-        build the Core programme of the model that induces
+        build the Core formulation of the model that induces
         counterfactuals for the datapoint base_factual
         """
         assert cf_margin >= 0
@@ -76,7 +76,10 @@ class CounterfactualGenerator:
             self.counterfact_model.addConstr(dec_vars.sum() == 1)  # (4) in paper, single one must be selected
 
             if dec_as_input_from == 1:  # need to add continuous variable setup
-                cont_ub = np.asarray((curr_value, 1 - curr_value))  # continous values are normalized between 0 and 1
+                if curr_context.increasing:
+                    cont_ub = np.asarray((0, 1 - curr_value))  # the decrease part cannot be present, for example for age
+                else:
+                    cont_ub = np.asarray((curr_value, 1 - curr_value))  # continous values are normalized between 0 and 1
                 cont_vars = self.counterfact_model.addVars(2, lb=0, ub=cont_ub, obj=curr_context.inv_MAD[0], name=f"cont{i}")
                 cont_vars = np.asarray(cont_vars.values())
 
@@ -86,8 +89,11 @@ class CounterfactualGenerator:
                     self.counterfact_model.addConstr(cont_vars[0] <= dec_vars[0], name=f"cont_change{i}")  # otherwise we would divide by 0
                 else:
                     # disable change of value if discrete decision is made
-                    self.counterfact_model.addConstr(
-                        cont_vars[0] / cont_ub[0] + cont_vars[1] / cont_ub[1] <= dec_vars[0], name=f"cont_change{i}")
+                    if curr_context.increasing:  # decreasing part is not present
+                        self.counterfact_model.addConstr(cont_vars[1] / cont_ub[1] <= dec_vars[0], name=f"cont_change{i}")
+                    else:
+                        self.counterfact_model.addConstr(
+                            cont_vars[0] / cont_ub[0] + cont_vars[1] / cont_ub[1] <= dec_vars[0], name=f"cont_change{i}")
 
                 # add continuous variables to the x_input vector
                 x_input.append(curr_value * dec_vars[0] - cont_vars[0] + cont_vars[1])

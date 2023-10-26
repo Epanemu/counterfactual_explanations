@@ -4,14 +4,15 @@ from collections import namedtuple
 
 
 class MixedEncoder:
-    Context = namedtuple('Context', ['name', 'values_table', 'median_vals', 'inv_MAD', "disc_opts", "scale"])
+    Context = namedtuple('Context', ['name', 'values_table', 'median_vals', 'inv_MAD', "disc_opts", "scale", "increasing"])
 
-    def __init__(self, pandas_dataframe):
+    def __init__(self, pandas_dataframe, increasing_columns=[]):
         """
         Build a training set of dummy encoded variables from existing inputdata
 
         Assumes discrete values are negative (if variable is fully discrete, one value should still be 0)
         For continuous values are reserved all positive values (including 0, in case of continuous or mixed type variables)
+        User can add column names of features that cannot decrease in the list increasing_columns
         """
         self.n_vars = pandas_dataframe.columns.size
         self.context = np.empty(self.n_vars, dtype=np.object)
@@ -64,8 +65,8 @@ class MixedEncoder:
                 MAD[j] = 1.48 * np.nanstd(table_values[j])  # Should be median
                 j += 1
             self.context[i] = MixedEncoder.Context(
-                name=pandas_dataframe.columns[i], values_table=table_values,
-                median_vals=median_vals, inv_MAD=1.0 / MAD, disc_opts=discrete_options, scale=scale)
+                name=pandas_dataframe.columns[i], values_table=table_values, median_vals=median_vals,
+                inv_MAD=1.0 / MAD, disc_opts=discrete_options, scale=scale, increasing=pandas_dataframe.columns[i] in increasing_columns)
 
         self.encoding_size = sum(map(lambda x: x.median_vals.shape[0], self.context))
 
