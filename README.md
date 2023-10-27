@@ -1,7 +1,7 @@
 # Generating set of counterfactuals within distance to optimum
 
 This code used as a starting point an implementation of the paper ["Efficient Search for Diverse
-Coherent Explanations"](https://arxiv.org/pdf/1901.04909.pdf) by Chriss Russel. 
+Coherent Explanations"](https://arxiv.org/pdf/1901.04909.pdf) by Chriss Russel.
 Only the implementation of a mixed polytope input encoding is used here.
 
 Original code by Chriss Russell can be found in the [original repository](https://bitbucket.org/ChrisRussell/diverse-coherent-explanations/src/master/).
@@ -48,16 +48,10 @@ dataset.
 ## Further contribution
 The input encoder was improved from the work of Chriss Russel. The handling of categorical variables is corrected, so now the model works well for categorical, numerical and mixed input features.
 
-<<<<<<< HEAD
-### Objective functions
-This repository also contains an attempt to create a utility function regarding
-the set of counterfactuals. This is a work in progress.
-=======
 ## Objective functions
 This repository also contains a couple of attempts to create a utility function regarding
 the set of counterfactuals.
 
-See `example_objective.py` for furhter details about the functions. 
+See `example_objective.py` for furhter details about the functions.
 
 This is still a work-in-progress.
->>>>>>> b5bf1061afd5906723cb9cf278e09a0977403a1b
