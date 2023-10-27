@@ -4,9 +4,9 @@ from collections import namedtuple
 
 
 class MixedEncoder:
-    Context = namedtuple('Context', ['name', 'values_table', 'median_vals', 'inv_MAD', "disc_opts", "scale", "categorical_ordered", "increasing"])
+    Context = namedtuple('Context', ['name', 'values_table', 'median_vals', 'inv_MAD', "disc_opts", "scale", "categorical_ordered", "increasing", "epsilon"])
 
-    def __init__(self, pandas_dataframe, categorical_order={}, increasing_columns=[]):
+    def __init__(self, pandas_dataframe, categorical_order={}, increasing_columns=[], causal_rels=[], epsilons={}):
         """
         Build a training set of dummy encoded variables from existing inputdata
 
@@ -15,19 +15,27 @@ class MixedEncoder:
 
         User can add column names of features that cannot decrease in the list increasing_columns
         and column names with lists representing an order of its categorical values
+        and causal_rels is a list of 2-tuples with column names that have a causal relationship (so far only "if first gets higher, the second must as well" )
+        Lastly, epsilons is a mapping of columns to the smallest increment value, if one can be defined. If not, it is computed from data.
         """
-        self.n_vars = pandas_dataframe.columns.size
+        columns = pandas_dataframe.columns.to_list()
+        self.causal_rels = []
+        for (c_from, c_to) in causal_rels:
+            self.causal_rels.append((columns.index(c_from), columns.index(c_to)))
+
+        self.n_vars = len(columns)
         self.context = np.empty(self.n_vars, dtype=np.object)
-        for i in range(pandas_dataframe.columns.shape[0]):  # TODO make this into enumerate
-            col_data = pandas_dataframe[pandas_dataframe.columns[i]]
+        for i, column in enumerate(columns):
+            col_data = pandas_dataframe[column]
             # TODO replace discrete wording for categorical
 
             discrete_vals = np.minimum(col_data, 0)  # discrete values (0 represents continuous values if any)
             discrete_options = np.unique(discrete_vals)  # get all indicator values
-            if pandas_dataframe.columns[i] in categorical_order:
-                ordered_categorical = ([0] if 0 in discrete_options else []) + categorical_order[pandas_dataframe.columns[i]]
+            if column in categorical_order:
+                ordered_categorical = ([0] if 0 in discrete_options and 0 not in categorical_order[column] else []) + categorical_order[column]
                 assert all(opt in ordered_categorical for opt in discrete_options), "Some value in data is not in the ordering"
-                discrete_options = ordered_categorical
+                print(discrete_options, ordered_categorical)
+                discrete_options = np.array(ordered_categorical)
 
             # create table of values of the right size, regardless if first position will be another discrete or continuous
             table_values = np.zeros((discrete_options.shape[0], col_data.shape[0]))
@@ -35,9 +43,16 @@ class MixedEncoder:
             MAD = np.empty_like(median_vals)  # median absolute deviation
 
             continuous = col_data[(col_data >= 0)]  # take only continuous values, eventually normalized
-            scale = np.nanmax(continuous)
+            scale = np.nanmax(continuous)  # add also a shift here, if using some values shifted from 0 to better cover the interval [0,1]
             if scale > 0:  # if there are some continuous values
+                if column not in epsilons:
+                    cont_sorted = np.sort(continuous.copy().to_numpy())
+                    diffs = cont_sorted[:-1] - cont_sorted[1:]
+                    mindiff = diffs[diffs != 0].min()
+                    epsilons[column] = mindiff
+
                 normalized = continuous / scale  # normalize data
+                epsilons[column] /= scale
 
                 # set normalized continuous values to the extra first row for continuous
                 table_values[0] = np.maximum(col_data / scale, 0)
@@ -56,6 +71,7 @@ class MixedEncoder:
                 j = 1
             elif discrete_options.shape[0] == 1:  # all values are 0, we assume it is continuous, happens in MNIST
                 scale = 1
+                epsilons[column] = 0.00001  # we don't know anything about the domain
                 table_values[0] = col_data
                 table_values[0, np.isnan(table_values[0])] = 1  # replace nan values with 1
                 MAD[0] = 1e-4  # for numerical stability
@@ -63,6 +79,7 @@ class MixedEncoder:
             else:
                 # 0 scale is the indicator of purely categorical variable
                 scale = 0
+                epsilons[column] = 0  # irrelevant value
                 j = 0
 
             # setup discrete
@@ -72,10 +89,12 @@ class MixedEncoder:
                 MAD[j] = 1.48 * np.nanstd(table_values[j])  # Should be median
                 j += 1
             self.context[i] = MixedEncoder.Context(
-                name=pandas_dataframe.columns[i], values_table=table_values, median_vals=median_vals,
+                name=column, values_table=table_values, median_vals=median_vals,
                 inv_MAD=1.0 / MAD, disc_opts=discrete_options, scale=scale,
-                categorical_ordered=pandas_dataframe.columns[i] in categorical_order,
-                increasing=pandas_dataframe.columns[i] in increasing_columns)
+                categorical_ordered=column in categorical_order,
+                increasing=column in increasing_columns,
+                epsilon=epsilons[column],
+            )
 
         self.encoding_size = sum(map(lambda x: x.median_vals.shape[0], self.context))
 

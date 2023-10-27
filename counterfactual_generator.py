@@ -13,7 +13,7 @@ import gurobi_ml
 from tqdm import tqdm
 
 from collections import namedtuple
-Var = namedtuple('Var', ['cont_vars', 'dec_vars', 'orig_val', 'disc_opts'])
+Var = namedtuple('Var', ['cont_vars', 'dec_vars', 'orig_val', 'disc_opts', 'fact_dec_i'])
 CounterFact = namedtuple('CounterFact', ['fact', 'counter_fact', 'orig_class', 'counter_class'])
 
 
@@ -68,13 +68,15 @@ class CounterfactualGenerator:
                     sign[disc_index] = -1
                     # set the value to median value, because when switched to continuous, it should take the median value
                     curr_value = curr_context.median_vals[0]
+                else:
+                    disc_index = 0  # continuous value is selected
 
                 sign[0] = 0  # disregard the first decision variable, deciding if it is continuous
                 dec_as_input_from = 1  # as input to the neural network are all decision variables, except the one for continuous
 
             dec_vars = self.counterfact_model.addVars(dec_count, lb=0, ub=1, obj=sign * curr_context.inv_MAD, vtype=gb.GRB.BINARY, name=f"dec{i}")
             if curr_context.categorical_ordered and curr_context.increasing:  # if the categorical values are ordered
-                self.counterfact_model.addConstr(dec_vars[dec_as_input_from:disc_index-1] == 0, name=f"{i}_cannot_get_lower")
+                self.counterfact_model.addConstrs((dec_vars[k] == 0 for k in range(dec_as_input_from, disc_index)), name=f"{i}_cannot_get_lower")
 
             dec_vars = np.asarray(dec_vars.values())
             self.counterfact_model.addConstr(dec_vars.sum() == 1)  # (4) in paper, single one must be selected
@@ -109,7 +111,16 @@ class CounterfactualGenerator:
             for dvar in dec_vars[dec_as_input_from:]:
                 x_input.append(dvar)
 
-            self.vars[i] = Var(cont_vars=cont_vars, dec_vars=dec_vars, orig_val=curr_value, disc_opts=curr_context.disc_opts)
+            self.vars[i] = Var(cont_vars=cont_vars, dec_vars=dec_vars, orig_val=curr_value, disc_opts=curr_context.disc_opts, fact_dec_i=disc_index)
+
+        # causal relationships - if i increases, j must increase as well
+        for (i, j) in self.encoder.causal_rels:
+            # if categorical - increase is measured in the decision vars TODO move scale==0 to categ bool
+            if self.encoder.context[i].scale == 0 and self.encoder.context[j].scale != 0:
+                # pokud i neni pure, jdu range od 0
+                self.counterfact_model.addConstr(self.vars[j].cont_vars[0] <= sum([self.vars[i].dec_vars[k] for k in range(1, self.vars[i].fact_dec_i + 1)]), name=f"{i}->{j}")
+
+                self.counterfact_model.addConstr(self.vars[j].cont_vars[1] >= self.encoder.context[j].epsilon - sum([self.vars[i].dec_vars[k] for k in range(1, self.vars[i].fact_dec_i + 1)]), name=f"second_{i}->{j}")
 
         input_vars = self.counterfact_model.addMVar((len(x_input)), lb=0, ub=1, name="nn_input")
         self.counterfact_model.addConstrs((input_vars[i] == x_input[i] for i in range(len(x_input))), name="nn_input_setup")
