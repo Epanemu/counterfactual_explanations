@@ -13,7 +13,7 @@ import gurobi_ml
 from tqdm import tqdm
 
 from collections import namedtuple
-Var = namedtuple('Var', ['cont_vars', 'dec_vars', 'orig_val', 'disc_opts', 'fact_dec_i'])
+Var = namedtuple('Var', ['cont_vars', 'dec_vars', 'orig_val', 'categ_opts', 'fact_dec_i'])
 CounterFact = namedtuple('CounterFact', ['fact', 'counter_fact', 'orig_class', 'counter_class'])
 
 
@@ -56,27 +56,27 @@ class CounterfactualGenerator:
             # decision for continuous does not influence the objective, and since we minimize, the selected is lowering the objective
             sign = np.ones(dec_count)
 
-            if curr_context.scale == 0:  # variable is fully discrete
-                disc_index = (curr_context.disc_opts == curr_value).argmax()
-                # sign[disc_index] = -1 # Chriss Russel original
-                sign[disc_index] = 0  # this is better since it wont be a double "cost" for switching from the original. At least for fully discrete variables
+            if curr_context.scale == 0:  # variable is fully categorical
+                categ_index = (curr_context.categ_opts == curr_value).argmax()
+                # sign[categ_index] = -1 # Chriss Russel original
+                sign[categ_index] = 0  # this is better since it wont be a double "cost" for switching from the original. At least for fully categorical variables
                 dec_as_input_from = 0  # all decision variables serve as input to the neural network
             else:  # there are some continuous values
-                if curr_value < 0:  # current value is < 0 if it is discrete
-                    disc_index = (curr_context.disc_opts == curr_value).argmax()
-                    disc_index += 1  # shifted by 1 because at index 0 is dec variable for continuous spectrum
-                    sign[disc_index] = -1
+                if curr_value < 0:  # current value is < 0 if it is categorical
+                    categ_index = (curr_context.categ_opts == curr_value).argmax()
+                    categ_index += 1  # shifted by 1 because at index 0 is dec variable for continuous spectrum
+                    sign[categ_index] = -1
                     # set the value to median value, because when switched to continuous, it should take the median value
                     curr_value = curr_context.median_vals[0]
                 else:
-                    disc_index = 0  # continuous value is selected
+                    categ_index = 0  # continuous value is selected
 
                 sign[0] = 0  # disregard the first decision variable, deciding if it is continuous
                 dec_as_input_from = 1  # as input to the neural network are all decision variables, except the one for continuous
 
             dec_vars = self.counterfact_model.addVars(dec_count, lb=0, ub=1, obj=sign * curr_context.inv_MAD, vtype=gb.GRB.BINARY, name=f"dec{i}")
             if curr_context.categorical_ordered and curr_context.increasing:  # if the categorical values are ordered
-                self.counterfact_model.addConstrs((dec_vars[k] == 0 for k in range(dec_as_input_from, disc_index)), name=f"{i}_cannot_get_lower")
+                self.counterfact_model.addConstrs((dec_vars[k] == 0 for k in range(dec_as_input_from, categ_index)), name=f"{i}_cannot_get_lower")
 
             dec_vars = np.asarray(dec_vars.values())
             self.counterfact_model.addConstr(dec_vars.sum() == 1)  # (4) in paper, single one must be selected
@@ -94,7 +94,7 @@ class CounterfactualGenerator:
                 elif curr_value == 1:
                     self.counterfact_model.addConstr(cont_vars[0] <= dec_vars[0], name=f"cont_change{i}")  # otherwise we would divide by 0
                 else:
-                    # disable change of value if discrete decision is made
+                    # disable change of value if categorical decision is made
                     if curr_context.increasing:  # decreasing part is not present
                         self.counterfact_model.addConstr(cont_vars[1] / cont_ub[1] <= dec_vars[0], name=f"cont_change{i}")
                     else:
@@ -111,16 +111,30 @@ class CounterfactualGenerator:
             for dvar in dec_vars[dec_as_input_from:]:
                 x_input.append(dvar)
 
-            self.vars[i] = Var(cont_vars=cont_vars, dec_vars=dec_vars, orig_val=curr_value, disc_opts=curr_context.disc_opts, fact_dec_i=disc_index)
+            self.vars[i] = Var(cont_vars=cont_vars, dec_vars=dec_vars, orig_val=curr_value, categ_opts=curr_context.categ_opts, fact_dec_i=categ_index)
 
         # causal relationships - if i increases, j must increase as well
         for (i, j) in self.encoder.causal_rels:
-            # if categorical - increase is measured in the decision vars TODO move scale==0 to categ bool
-            if self.encoder.context[i].scale == 0 and self.encoder.context[j].scale != 0:
-                # pokud i neni pure, jdu range od 0
-                self.counterfact_model.addConstr(self.vars[j].cont_vars[0] <= sum([self.vars[i].dec_vars[k] for k in range(1, self.vars[i].fact_dec_i + 1)]), name=f"{i}->{j}")
-
-                self.counterfact_model.addConstr(self.vars[j].cont_vars[1] >= self.encoder.context[j].epsilon - sum([self.vars[i].dec_vars[k] for k in range(1, self.vars[i].fact_dec_i + 1)]), name=f"second_{i}->{j}")
+            # if categorical - increase is measured in the decision vars
+            # TODO implement also when i is not categorical
+            if self.encoder.context[i].purely_categ:
+                # j can decrease only if i stayed the same or decreased range starts at 0, because it is pure categ. variable
+                i_leq_original = sum([self.vars[i].dec_vars[k] for k in range(0, self.vars[i].fact_dec_i + 1)])
+                if self.encoder.context[j].purely_categ:
+                    j_gt_original = sum([self.vars[j].dec_vars[k] for k in range(self.vars[j].fact_dec_i + 1, len(self.vars[j]))])
+                    self.counterfact_model.addConstr(
+                        j_gt_original >= 1 - i_leq_original,
+                        name=f"{i}->{j}"
+                    )
+                else:
+                    self.counterfact_model.addConstr(
+                        self.vars[j].cont_vars[0] <= i_leq_original,
+                        name=f"{i}->{j}"
+                    )
+                    self.counterfact_model.addConstr(
+                        self.vars[j].cont_vars[1] >= self.encoder.context[j].epsilon - i_leq_original,
+                        name=f"second_{i}->{j}"
+                    )
 
         input_vars = self.counterfact_model.addMVar((len(x_input)), lb=0, ub=1, name="nn_input")
         self.counterfact_model.addConstrs((input_vars[i] == x_input[i] for i in range(len(x_input))), name="nn_input_setup")
@@ -200,9 +214,9 @@ class CounterfactualGenerator:
         dec_values = np.asarray(list(map(lambda x: x.Xn, variable.dec_vars)))
         selected_i = np.argmax(dec_values)
 
-        if dec_values.shape[0] == variable.disc_opts.shape[0]:
-            # all decisions are for discrete values, it is a fully discrete variable
-            return variable.disc_opts[selected_i]
+        if dec_values.shape[0] == variable.categ_opts.shape[0]:
+            # all decisions are for categorical values, it is a fully categorical variable
+            return variable.categ_opts[selected_i]
 
         cont_vars = variable.cont_vars
         if selected_i == 0:  # return continuous
@@ -211,7 +225,7 @@ class CounterfactualGenerator:
         # this should hold true
         assert (np.abs(cont_vars[0].Xn + cont_vars[1].Xn) < 10e-6)
 
-        return variable.disc_opts[selected_i - 1]
+        return variable.categ_opts[selected_i - 1]
 
     def __recover_all_vals(self):
         return np.asarray(list(map(self.__recover_val, self.vars)))
