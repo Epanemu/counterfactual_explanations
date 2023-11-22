@@ -48,11 +48,6 @@ dataset.
 ## Further contribution
 The input encoder was improved from the work of Chriss Russel. The handling of categorical variables is corrected, so now the model works well for categorical, numerical and mixed input features.
 
-<<<<<<< HEAD
-### Objective functions
-This repository also contains an attempt to create a utility function regarding
-the set of counterfactuals. This is a work in progress.
-=======
 ## Objective functions
 This repository also contains a couple of attempts to create a utility function regarding
 the set of counterfactuals.
@@ -60,4 +55,6 @@ the set of counterfactuals.
 See `example_objective.py` for furhter details about the functions. 
 
 This is still a work-in-progress.
->>>>>>> b5bf1061afd5906723cb9cf278e09a0977403a1b
+
+## Master's Thesis
+This repository is a part of Jiří Němeček's [Master's Thesis](https://dspace.cvut.cz/handle/10467/109455?locale-attribute=en) at FEE CTU in Prague
