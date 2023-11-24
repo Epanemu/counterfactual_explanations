@@ -55,3 +55,6 @@ the set of counterfactuals.
 See `example_objective.py` for furhter details about the functions.
 
 This is still a work-in-progress.
+
+## Master's Thesis
+This repository is a part of Jiří Němeček's [Master's Thesis](https://dspace.cvut.cz/handle/10467/109455?locale-attribute=en) at FEE CTU in Prague
