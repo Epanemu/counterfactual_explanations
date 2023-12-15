@@ -97,6 +97,10 @@ class MixedEncoder:
 
         self.encoding_size = sum(map(lambda x: x.median_vals.shape[0], self.context))
 
+    @property
+    def scales(self):
+        return np.array([cx.scale if cx.scale != 0 else 1 for cx in self.context])
+
     def get_encoded_data(self):
         encoded = np.vstack(list(map(lambda x: x.values_table, self.context))).T  # n_rows X all_variables
         return encoded
