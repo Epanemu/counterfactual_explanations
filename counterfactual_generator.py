@@ -46,7 +46,7 @@ class CounterfactualGenerator:
         # --- set the input variable constraints and build x_input ~ the inputs
         x_input = []
 
-        self.vars = np.empty(self.encoder.n_vars, dtype=np.object)
+        self.vars = np.empty(self.encoder.n_vars, dtype=object)
         for i in range(self.encoder.n_vars):
             curr_value = self.base_factual[i]
             curr_context = self.encoder.context[i]
@@ -203,7 +203,7 @@ class CounterfactualGenerator:
             self.desired_sign = -1 * self.fact_sign
             self.mutli_class = False
 
-        self.base_factual = factual.copy().astype(np.float)
+        self.base_factual = factual.copy().astype(float)
         for i in range(factual.size):
             if factual[i] > 0:
                 self.base_factual[i] /= self.encoder.context[i].scale  # normalize continuous values

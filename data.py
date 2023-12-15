@@ -24,7 +24,7 @@ class MixedEncoder:
             self.causal_rels.append((columns.index(c_from), columns.index(c_to)))
 
         self.n_vars = len(columns)
-        self.context = np.empty(self.n_vars, dtype=np.object)
+        self.context = np.empty(self.n_vars, dtype=object)
         for i, column in enumerate(columns):
             col_data = pandas_dataframe[column]
 
